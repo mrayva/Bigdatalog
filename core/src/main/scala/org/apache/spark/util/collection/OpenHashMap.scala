@@ -33,7 +33,7 @@ import org.apache.spark.annotation.DeveloperApi
  * distinguish between the 0/0.0/0L and non-exist value
  */
 @DeveloperApi
-private[spark]
+//private[spark]
 class OpenHashMap[K : ClassTag, @specialized(Long, Int, Double) V: ClassTag](
     initialCapacity: Int)
   extends Iterable[(K, V)]

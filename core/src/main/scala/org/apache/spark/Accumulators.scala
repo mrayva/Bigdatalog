@@ -360,7 +360,8 @@ private[spark] object Accumulators extends Logging {
 
 }
 
-private[spark] object InternalAccumulator {
+//private[spark]
+object InternalAccumulator {
   val PEAK_EXECUTION_MEMORY = "peakExecutionMemory"
   val TEST_ACCUMULATOR = "testAccumulator"
 

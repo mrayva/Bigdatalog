@@ -270,7 +270,8 @@ object Exchange {
  * each operator by inserting [[Exchange]] Operators where required.  Also ensure that the
  * input partition ordering requirements are met.
  */
-private[sql] case class EnsureRequirements(sqlContext: SQLContext) extends Rule[SparkPlan] {
+//private[sql]
+case class EnsureRequirements(sqlContext: SQLContext) extends Rule[SparkPlan] {
   private def defaultNumPreShufflePartitions: Int = sqlContext.conf.numShufflePartitions
 
   private def targetPostShuffleInputSize: Long = sqlContext.conf.targetPostShuffleInputSize

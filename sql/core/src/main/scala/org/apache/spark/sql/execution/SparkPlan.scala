@@ -80,7 +80,8 @@ abstract class SparkPlan extends QueryPlan[SparkPlan] with Logging with Serializ
   /**
    * Return a LongSQLMetric according to the name.
    */
-  private[sql] def longMetric(name: String): LongSQLMetric =
+  //private[sql]
+  def longMetric(name: String): LongSQLMetric =
     metrics(name).asInstanceOf[LongSQLMetric]
 
   // TODO: Move to `DistributedPlan`
@@ -220,7 +221,8 @@ abstract class SparkPlan extends QueryPlan[SparkPlan] with Logging with Serializ
 
   private[this] def isTesting: Boolean = sys.props.contains("spark.testing")
 
-  protected def newMutableProjection(
+  //protected
+  def newMutableProjection(
       expressions: Seq[Expression], inputSchema: Seq[Attribute]): () => MutableProjection = {
     log.debug(s"Creating MutableProj: $expressions, inputSchema: $inputSchema")
     try {
@@ -277,11 +279,13 @@ abstract class SparkPlan extends QueryPlan[SparkPlan] with Logging with Serializ
   }
 }
 
-private[sql] trait LeafNode extends SparkPlan {
+//private[sql]
+trait LeafNode extends SparkPlan {
   override def children: Seq[SparkPlan] = Nil
 }
 
-private[sql] trait UnaryNode extends SparkPlan {
+//private[sql]
+trait UnaryNode extends SparkPlan {
   def child: SparkPlan
 
   override def children: Seq[SparkPlan] = child :: Nil
@@ -289,7 +293,8 @@ private[sql] trait UnaryNode extends SparkPlan {
   override def outputPartitioning: Partitioning = child.outputPartitioning
 }
 
-private[sql] trait BinaryNode extends SparkPlan {
+//private[sql]
+trait BinaryNode extends SparkPlan {
   def left: SparkPlan
   def right: SparkPlan
 

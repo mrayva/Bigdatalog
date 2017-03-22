@@ -25,7 +25,8 @@ import org.apache.spark.sql.execution.SQLExecution
 import org.apache.spark.sql.execution.metric.{SQLMetricParam, SQLMetricValue}
 import org.apache.spark.{JobExecutionStatus, Logging, SparkConf}
 
-private[sql] class SQLListener(conf: SparkConf) extends SparkListener with Logging {
+//private[sql]
+class SQLListener(conf: SparkConf) extends SparkListener with Logging {
 
   private val retainedExecutions = conf.getInt("spark.sql.ui.retainedExecutions", 1000)
 

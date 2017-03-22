@@ -1217,6 +1217,45 @@ private[spark] class BlockManager(
     selectLocks
   }
 
+  /*
+   APS - so we can swap out blocks that we know will pass the memory-aware caching checks via sizeEstimator.
+    Experiments found SizeEstimator to be super expensive w.r.t. the total cost of an iteration, and this varies based on
+    the type of data structure used in SetRDD partitions.
+  */
+  def replaceLocalBlock(oldBlockId: BlockId, newBlockId: BlockId, tellMaster : Boolean = true): Unit = {
+    val info = blockInfo.get(oldBlockId).orNull
+    val info2 = blockInfo.get(newBlockId).orNull
+
+    if (info != null && info2 != null) {
+      info.synchronized {
+        info2.synchronized {
+          // Removals are idempotent in disk store and memory store. At worst, we get a warning.
+          val replacedInMemory = memoryStore.replaceBlock(oldBlockId, newBlockId)
+          val replacedOnDisk = diskStore.replaceBlock(oldBlockId, newBlockId)
+          if (!replacedInMemory && !replacedOnDisk) {
+            logWarning(s"Block $oldBlockId could not be replaced as it was not found in either disk or memory")
+          }
+
+          /*if (tellMaster && info.tellMaster) {
+            val status = getCurrentBlockStatus(oldBlockId, info)
+            reportBlockStatus(oldBlockId, info, status)
+          }*/
+
+          // now remove newBlock and tell the master so everyone knows its gone
+          blockInfo.remove(newBlockId)
+          if (tellMaster && info2.tellMaster) {
+            val status = getCurrentBlockStatus(newBlockId, info2)
+            reportBlockStatus(newBlockId, info2, status)
+          }
+        }
+      }
+    } else if (info == null) {
+      logError(s"Asked to replace block $oldBlockId, which does not exist")
+    } else {
+      logWarning(s"Asked to replace block $oldBlockId, with $newBlockId which does not exist")
+    }
+  }
+
   private def shouldCompress(blockId: BlockId): Boolean = {
     blockId match {
       case _: ShuffleBlockId => compressShuffle

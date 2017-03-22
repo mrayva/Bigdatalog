@@ -28,7 +28,8 @@ import org.apache.spark.util.SerializableConfiguration
  * An implementation of checkpointing that writes the RDD data to reliable storage.
  * This allows drivers to be restarted on failure with previously computed state.
  */
-private[spark] class ReliableRDDCheckpointData[T: ClassTag](@transient private val rdd: RDD[T])
+//private[spark]
+class ReliableRDDCheckpointData[T: ClassTag](@transient private val rdd: RDD[T])
   extends RDDCheckpointData[T](rdd) with Logging {
 
   // The directory to which the associated RDD has been checkpointed to
@@ -70,7 +71,8 @@ private[spark] class ReliableRDDCheckpointData[T: ClassTag](@transient private v
 
 }
 
-private[spark] object ReliableRDDCheckpointData extends Logging {
+//private[spark]
+object ReliableRDDCheckpointData extends Logging {
 
   /** Return the path of the directory to which this RDD's checkpoint data is written. */
   def checkpointPath(sc: SparkContext, rddId: Int): Option[Path] = {

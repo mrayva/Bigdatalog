@@ -583,4 +583,45 @@ private[spark] class MemoryStore(blockManager: BlockManager, memoryManager: Memo
     )
     logMemoryUsage()
   }
+  
+  /**
+   * APS - Moves entry at key newBlockId to key oldBlockId, removes entry at key newBlockId and adjust memory accounting.
+   *
+   * @param oldBlockId the ID of the block we replacing
+   * @param newBlockId the ID of the block we replacing oldBlockId with
+    * @return true if both blocks are found, false otherwise
+    * */
+  def replaceBlock(oldBlockId: BlockId, newBlockId: BlockId): Boolean = {
+    var changeInMemorySize = 0L
+    var entryToRemove: MemoryEntry = null
+
+    val result = entries.synchronized {
+      val oldBlockEntry = entries.get(oldBlockId)
+      val newBlockEntry = entries.get(newBlockId)
+
+      // entries need to contain both oldBlockId and newBlockId
+      if (oldBlockEntry != null && newBlockEntry != null) {
+        changeInMemorySize = oldBlockEntry.size
+
+        entries.put(oldBlockId, new MemoryEntry(newBlockEntry.value,
+          newBlockEntry.size,
+          newBlockEntry.deserialized))
+
+        // remove new block since we moved it to the old block's entry
+        entryToRemove = entries.remove(newBlockId)
+        logInfo(s"Replaced in-memory data of block $oldBlockId with data from $newBlockId")
+        true
+      } else {
+        false
+      }
+    }
+
+    if (entryToRemove != null) {
+      // release (or increase) by the delta between the two blocks
+      memoryManager.releaseStorageMemory(changeInMemorySize)
+      logDebug(s"Block $newBlockId of size ${entryToRemove.size} dropped " +
+        s"from memory (free ${maxMemory - blocksMemoryUsed})")
+    }
+    result
+  }  
 }

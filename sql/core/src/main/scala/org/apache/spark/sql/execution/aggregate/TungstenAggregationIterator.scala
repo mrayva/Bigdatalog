@@ -149,9 +149,9 @@ class TungstenAggregationIterator(
 
   // Initialize all AggregateFunctions by binding references, if necessary,
   // and setting inputBufferOffset and mutableBufferOffset.
+    var mutableBufferOffset = 0
   private def initializeAllAggregateFunctions(
       startingInputBufferOffset: Int): Array[AggregateFunction] = {
-    var mutableBufferOffset = 0
     var inputBufferOffset: Int = startingInputBufferOffset
     val functions = new Array[AggregateFunction](allAggregateExpressions.length)
     var i = 0
@@ -480,7 +480,8 @@ class TungstenAggregationIterator(
   // This is the hash map used for hash-based aggregation. It is backed by an
   // UnsafeFixedWidthAggregationMap and it is used to store
   // all groups and their corresponding aggregation buffers for hash-based aggregation.
-  private[this] val hashMap = new UnsafeFixedWidthAggregationMap(
+  //private[this]
+  val hashMap = new UnsafeFixedWidthAggregationMap(
     initialAggregationBuffer,
     StructType.fromAttributes(allAggregateFunctions.flatMap(_.aggBufferAttributes)),
     StructType.fromAttributes(groupingExpressions.map(_.toAttribute)),

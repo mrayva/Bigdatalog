@@ -276,7 +276,7 @@ class OpenHashSet[@specialized(Long, Int) T: ClassTag](
 }
 
 
-private[spark]
+//private[spark]
 object OpenHashSet {
 
   val MAX_CAPACITY = 1 << 30

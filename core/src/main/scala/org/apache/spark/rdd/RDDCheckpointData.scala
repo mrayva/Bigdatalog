@@ -25,7 +25,8 @@ import org.apache.spark.Partition
  * Enumeration to manage state transitions of an RDD through checkpointing
  * [ Initialized --> checkpointing in progress --> checkpointed ].
  */
-private[spark] object CheckpointState extends Enumeration {
+//private[spark]
+object CheckpointState extends Enumeration {
   type CheckpointState = Value
   val Initialized, CheckpointingInProgress, Checkpointed = Value
 }
@@ -36,13 +37,15 @@ private[spark] object CheckpointState extends Enumeration {
  * as well as, manages the post-checkpoint state by providing the updated partitions,
  * iterator and preferred locations of the checkpointed RDD.
  */
-private[spark] abstract class RDDCheckpointData[T: ClassTag](@transient private val rdd: RDD[T])
+//private[spark]
+abstract class RDDCheckpointData[T: ClassTag](@transient private val rdd: RDD[T])
   extends Serializable {
 
   import CheckpointState._
 
   // The checkpoint state of the associated RDD.
-  protected var cpState = Initialized
+  //protected
+  var cpState = Initialized
 
   // The RDD that contains our checkpointed data
   private var cpRDD: Option[CheckpointRDD[T]] = None

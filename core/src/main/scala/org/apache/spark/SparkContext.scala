@@ -42,9 +42,7 @@ import org.apache.hadoop.mapred.{FileInputFormat, InputFormat, JobConf, Sequence
   TextInputFormat}
 import org.apache.hadoop.mapreduce.{InputFormat => NewInputFormat, Job => NewHadoopJob}
 import org.apache.hadoop.mapreduce.lib.input.{FileInputFormat => NewFileInputFormat}
-
 import org.apache.mesos.MesosNativeLibrary
-
 import org.apache.spark.annotation.DeveloperApi
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.deploy.{LocalSparkCluster, SparkHadoopUtil}
@@ -59,6 +57,7 @@ import org.apache.spark.scheduler._
 import org.apache.spark.scheduler.cluster.{CoarseGrainedSchedulerBackend,
   SparkDeploySchedulerBackend, SimrSchedulerBackend}
 import org.apache.spark.scheduler.cluster.mesos.{CoarseMesosSchedulerBackend, MesosSchedulerBackend}
+import org.apache.spark.scheduler.fixedpoint.FixedPointJobDefinition
 import org.apache.spark.scheduler.local.LocalBackend
 import org.apache.spark.storage._
 import org.apache.spark.storage.BlockManagerMessages.TriggerThreadDump
@@ -1995,6 +1994,23 @@ class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationCli
       resultHandler,
       localProperties.get)
     new SimpleFutureAction(waiter, resultFunc)
+  }
+
+  /**
+    * Run a fixedpoint (i.e., Datalog) program as the given RDD and pass the back to the caller specified in 'FixedPointJobDefinition'
+    * Termination condition specified as 'fixedPointEvaluator'.
+    */
+  def runFixedPointJob[T](rdd: RDD[_],
+                          fixedPointJobDefinition: FixedPointJobDefinition,
+                          fixedPointEvaluator: (Iterator[_]) => Boolean) = {
+    assertNotStopped()
+    val callSite = getCallSite
+    val cleanedFixedPointFunc = clean((context: TaskContext, iter: Iterator[_]) => fixedPointEvaluator(iter))
+    fixedPointJobDefinition.fixedPointEvaluator(cleanedFixedPointFunc)
+
+    dagScheduler.runFixedPointJob(rdd, fixedPointJobDefinition, callSite, localProperties.get)
+    val allRDD = fixedPointJobDefinition.getFinalRDD
+    allRDD.doCheckpoint()
   }
 
   /**

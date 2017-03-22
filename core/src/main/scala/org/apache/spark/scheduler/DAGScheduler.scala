@@ -28,15 +28,14 @@ import scala.concurrent.duration._
 import scala.language.existentials
 import scala.language.postfixOps
 import scala.util.control.NonFatal
-
 import org.apache.commons.lang3.SerializationUtils
-
 import org.apache.spark._
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.executor.TaskMetrics
 import org.apache.spark.partial.{ApproximateActionListener, ApproximateEvaluator, PartialResult}
-import org.apache.spark.rdd.RDD
+import org.apache.spark.rdd.{MemoryRDDCheckpointData, RDD}
 import org.apache.spark.rpc.RpcTimeout
+import org.apache.spark.scheduler.fixedpoint.{FixedPointJobDefinition, FixedPointJobListener, FixedPointResultStage, FixedPointResultTask}
 import org.apache.spark.storage._
 import org.apache.spark.util._
 import org.apache.spark.storage.BlockManagerMessages.BlockManagerHeartbeat
@@ -151,6 +150,9 @@ class DAGScheduler(
   private[scheduler] val failedStages = new HashSet[Stage]
 
   private[scheduler] val activeJobs = new HashSet[ActiveJob]
+
+  // APS - so we can check if fixedpoint job has reached a fixed point
+  private[scheduler] val jobIdToFixedPointJobDefinition = new HashMap[Int, FixedPointJobDefinition]
 
   /**
    * Contains the locations that each RDD's partitions are cached on.  This map's keys are RDD ids
@@ -337,6 +339,20 @@ class DAGScheduler(
     updateJobIdStageIdMaps(jobId, stage)
     stage
   }
+
+  private def newFixedPointResultStage(
+                              rdd: RDD[_],
+                              func: (TaskContext, Iterator[_]) => _,
+                              partitions: Array[Int],
+                              jobId: Int,
+                              callSite: CallSite): FixedPointResultStage = {
+    val (parentStages: List[Stage], id: Int) = getParentStagesAndId(rdd, jobId)
+    val stage = new FixedPointResultStage(id, rdd, func, partitions, parentStages, jobId, callSite)
+    stageIdToStage(id) = stage
+    updateJobIdStageIdMaps(jobId, stage)
+    stage
+  }
+
 
   /**
    * Create a shuffle map Stage for the given RDD.  The stage will also be associated with the
@@ -623,6 +639,34 @@ class DAGScheduler(
     }
   }
 
+  def runFixedPointJob[T, U](rdd: RDD[_],
+                             fixedPointJobDefinition: FixedPointJobDefinition,
+                             callSite: CallSite,
+                             properties: Properties): Unit = {
+    val start = System.nanoTime
+    val deltaSPrimeRDD = fixedPointJobDefinition.setupIteration(fixedPointJobDefinition, rdd)
+    val partitions = (0 until deltaSPrimeRDD.partitions.size).toArray
+    if (partitions.size == 0)
+      return
+
+    val jobId = nextJobId.getAndIncrement()
+
+    val listener = new FixedPointJobListener(this, jobId, partitions.size, fixedPointJobDefinition)
+    eventProcessLoop.post(JobSubmitted(
+      jobId, deltaSPrimeRDD, fixedPointJobDefinition.getfixedPointEvaluator, partitions, callSite, listener,
+      SerializationUtils.clone(properties)))
+
+    listener.awaitResult() match {
+      case JobSucceeded =>
+        logInfo("Fixed Point Job %d finished: %s, took %f s".format
+        (listener.jobId, callSite.shortForm, (System.nanoTime - start) / 1e9))
+      case JobFailed(exception: Exception) =>
+        logInfo("Fixed Point Job %d failed: %s, took %f s".format
+        (listener.jobId, callSite.shortForm, (System.nanoTime - start) / 1e9))
+        throw exception
+    }
+  }
+
   /**
    * Run an approximate job on the given RDD and pass all the results to an ApproximateEvaluator
    * as they arrive. Returns a partial result object from the evaluator.
@@ -834,7 +878,11 @@ class DAGScheduler(
     try {
       // New stage creation may throw an exception if, for example, jobs are run on a
       // HadoopRDD whose underlying HDFS files have been deleted.
-      finalStage = newResultStage(finalRDD, func, partitions, jobId, callSite)
+      finalStage = if (listener.isInstanceOf[FixedPointJobListener]) {
+        newFixedPointResultStage(finalRDD, func, partitions, jobId, callSite)
+      } else {
+        newResultStage(finalRDD, func, partitions, jobId, callSite)
+      }
     } catch {
       case e: Exception =>
         logWarning("Creating new stage failed due to exception - job: " + jobId, e)
@@ -850,6 +898,10 @@ class DAGScheduler(
     logInfo("Parents of final stage: " + finalStage.parents)
     logInfo("Missing parents: " + getMissingParentStages(finalStage))
 
+    // for tracking fixedpoint jobs
+    if (listener.isInstanceOf[FixedPointJobListener])
+      jobIdToFixedPointJobDefinition(jobId) = listener.asInstanceOf[FixedPointJobListener].fixedPointJobDefinition
+
     val jobSubmissionTime = clock.getTimeMillis()
     jobIdToActiveJob(jobId) = job
     activeJobs += job
@@ -862,6 +914,44 @@ class DAGScheduler(
 
     submitWaitingStages()
   }
+
+  private[scheduler] def submitNextIteration(job: ActiveJob,
+                                             fpjd: FixedPointJobDefinition,
+                                             resultStage: ResultStage) {
+    val nextDeltaSPrimeRDD = fpjd.setupIteration(fpjd, resultStage.rdd)
+
+    val partitions: Array[Int] = (0 until nextDeltaSPrimeRDD.partitions.length).toArray
+    var nextIterationResultStage: FixedPointResultStage = null
+    try {
+      // New stage creation may throw an exception if, for example, jobs are run on a
+      // HadoopRDD whose underlying HDFS files have been deleted.
+      nextIterationResultStage = newFixedPointResultStage(nextDeltaSPrimeRDD, resultStage.func, partitions, job.jobId, job.callSite)
+    } catch {
+      case e: Exception =>
+        logWarning("Creating new stage failed due to exception - job: " + job.jobId, e)
+        job.listener.jobFailed(e)
+        return
+    }
+
+    if (nextIterationResultStage != null) {
+      clearCacheLocs()
+      job.finalStage = nextIterationResultStage
+
+      job.numFinished = 0
+      for (i <- 0 until job.numPartitions)
+        job.finished(i) = false
+
+      nextIterationResultStage.setActiveJob(job)
+
+      //val stageIds = nextIterationResultStage.parents.map(_.id) ++ Seq(nextIterationResultStage.id)
+      //val stageInfos = stageIds.flatMap(id => stageIdToStage.get(id).map(_.latestInfo))
+      //listenerBus.post(SparkListenerJobIterationStart(job.jobId, clock.getTimeMillis(), stageInfos))
+
+      submitStage(nextIterationResultStage)
+    }
+    submitWaitingStages()
+  }
+
 
   private[scheduler] def handleMapStageSubmitted(jobId: Int,
       dependency: ShuffleDependency[_, _, _],
@@ -1027,7 +1117,16 @@ class DAGScheduler(
             new ShuffleMapTask(stage.id, stage.latestInfo.attemptId,
               taskBinary, part, locs, stage.internalAccumulators)
           }
-
+        case stage: FixedPointResultStage =>
+          val job = stage.activeJob.get
+          val fpjd = jobIdToFixedPointJobDefinition(job.jobId)
+          partitionsToCompute.map { id =>
+            val p: Int = stage.partitions(id)
+            val part = stage.rdd.partitions(p)
+            val locs = taskIdToLocations(id)
+            new FixedPointResultTask(stage.id, stage.latestInfo.attemptId,
+              taskBinary, part, locs, id, stage.internalAccumulators, stage.hasParent, fpjd.rddIds)
+          }
         case stage: ResultStage =>
           val job = stage.activeJob.get
           partitionsToCompute.map { id =>
@@ -1152,11 +1251,15 @@ class DAGScheduler(
                   job.finished(rt.outputId) = true
                   job.numFinished += 1
                   // If the whole job has finished, remove it
-                  if (job.numFinished == job.numPartitions) {
+                  val jobFinished = (job.numFinished == job.numPartitions)
+                  if (jobFinished) {
                     markStageAsFinished(resultStage)
-                    cleanupStateForJobAndIndependentStages(job)
-                    listenerBus.post(
-                      SparkListenerJobEnd(job.jobId, clock.getTimeMillis(), JobSucceeded))
+                    // APS - if not a fixed point job, operate as usual
+                    if (!jobIdToFixedPointJobDefinition.contains(job.jobId)) {
+                      cleanupStateForJobAndIndependentStages(job)
+                      listenerBus.post(
+                        SparkListenerJobEnd(job.jobId, clock.getTimeMillis(), JobSucceeded))
+                    }
                   }
 
                   // taskSucceeded runs some user code that might throw an exception. Make sure
@@ -1167,6 +1270,29 @@ class DAGScheduler(
                     case e: Exception =>
                       // TODO: Perhaps we want to mark the resultStage as failed?
                       job.listener.jobFailed(new SparkDriverExecutionException(e))
+                  }
+
+                  /* APS - A fixed point job might not be finished.
+                     Check if the listener detected fixedpoint was reached.
+                     If not, introduce another stage of the recursive rules.
+                  */
+                  if (jobFinished && jobIdToFixedPointJobDefinition.contains(job.jobId)) {
+                    //listenerBus.post(SparkListenerJobIterationEnd(job.jobId, clock.getTimeMillis()))
+                    // if the job is done and its a fixed point job, check if we have reached a fixed point
+                    val listener = job.listener.asInstanceOf[FixedPointJobListener]
+                    if (listener.isFixedPointReached) {
+                      cleanupStateForJobAndIndependentStages(job)
+                      listenerBus.post(
+                        SparkListenerJobEnd(job.jobId, clock.getTimeMillis(), JobSucceeded))
+                      listener.fixedPointReached()
+                      logInfo("Fixed Point reached for job " + job.jobId)
+                    } else {
+                      // reset state in listener for tracking fixed point status
+                      listener.reset()
+                      val fpjd = jobIdToFixedPointJobDefinition(job.jobId)
+                      doMemoryCheckpoint(job, fpjd, resultStage)
+                      submitNextIteration(job, fpjd, resultStage)
+                    }
                   }
                 }
               case None =>
@@ -1297,6 +1423,38 @@ class DAGScheduler(
         // will abort the job.
     }
     submitWaitingStages()
+  }
+
+  // Go through the last ResultStage's dependencies and apply memory checkpointing to trunate the lineage
+  private def doMemoryCheckpoint(job: ActiveJob, fpjd: FixedPointJobDefinition, resultStage: ResultStage): Unit = {
+    val rdd = resultStage.rdd
+    if (!rdd.doCheckpointCalled) {
+      rdd.doCheckpointCalled = true
+
+      val visited = new HashSet[RDD[_]]
+      val waitingForVisit = new Stack[RDD[_]]
+
+      def visit(r: RDD[_]): Unit = {
+        if (!visited(r)) {
+          visited += r
+          if (!r.isCheckpointed) {
+            r.checkpointData match {
+              case Some(m: MemoryRDDCheckpointData[_]) if (!m.isCheckpointed) => {
+                r.dependencies.foreach(dep => visit(dep.rdd))
+                r.checkpointData.get.checkpoint()
+                r.doCheckpointCalled = true
+              }
+              // we aren't checkpointed at this level, so put the dependencies on the stack to see if they are
+              case _ => r.dependencies.foreach(dep => waitingForVisit.push(dep.rdd))
+            }
+          }
+        }
+      }
+
+      waitingForVisit.push(rdd)
+      while (waitingForVisit.nonEmpty)
+        visit(waitingForVisit.pop())
+    }
   }
 
   /**

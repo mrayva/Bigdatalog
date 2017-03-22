@@ -109,6 +109,9 @@ public final class UnsafeFixedWidthAggregationMap {
     this.emptyAggregationBuffer = valueProjection.apply(emptyAggregationBuffer).getBytes();
   }
 
+  public int numElements() {
+    return this.map.numElements();
+  }
   /**
    * Return the aggregation buffer for the current group. For efficiency, all calls to this method
    * return the same object. If additional memory could not be allocated, then this method will

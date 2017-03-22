@@ -720,7 +720,8 @@ abstract class RDD[T: ClassTag](
    * which should be `false` unless this is a pair RDD and the input function doesn't modify
    * the keys.
    */
-  private[spark] def mapPartitionsInternal[U: ClassTag](
+  //private[spark]
+  def mapPartitionsInternal[U: ClassTag](
       f: Iterator[T] => Iterator[U],
       preservesPartitioning: Boolean = false): RDD[U] = withScope {
     new MapPartitionsRDD(
@@ -1576,6 +1577,23 @@ abstract class RDD[T: ClassTag](
     this
   }
 
+  def memoryCheckpoint(): Unit = RDDCheckpointData.synchronized {
+    if (isCheckpointedAndMaterialized) {
+      logWarning("Not marking RDD for memory checkpoint because it was already " +
+        "checkpointed and materialized")
+    } else {
+      // Lineage is not truncated yet, so just override any existing checkpoint data with ours
+      checkpointData match {
+        case Some(_: ReliableRDDCheckpointData[_]) => logWarning(
+          "RDD was already marked for reliable checkpointing: overriding with memory checkpoint.")
+        case Some(_: LocalRDDCheckpointData[_]) => logWarning(
+          "RDD was already marked for local checkpointing: overriding with memory checkpoint.")
+        case _ =>
+      }
+    }
+    checkpointData = Some(new MemoryRDDCheckpointData(this))
+  }
+
   /**
    * Return whether this RDD is checkpointed and materialized, either reliably or locally.
    */
@@ -1634,7 +1652,8 @@ abstract class RDD[T: ClassTag](
 
   private[spark] def elementClassTag: ClassTag[T] = classTag[T]
 
-  private[spark] var checkpointData: Option[RDDCheckpointData[T]] = None
+  //private[spark]
+  var checkpointData: Option[RDDCheckpointData[T]] = None
 
   /** Returns the first parent RDD */
   protected[spark] def firstParent[U: ClassTag]: RDD[U] = {
@@ -1667,7 +1686,8 @@ abstract class RDD[T: ClassTag](
   }
 
   // Avoid handling doCheckpoint multiple times to prevent excessive recursion
-  @transient private var doCheckpointCalled = false
+  //private
+  @transient var doCheckpointCalled = false
 
   /**
    * Performs the checkpointing of this RDD by saving this. It is called after a job using this RDD

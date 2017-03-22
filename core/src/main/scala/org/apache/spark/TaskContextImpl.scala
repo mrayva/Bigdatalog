@@ -141,7 +141,8 @@ private[spark] class TaskContextImpl(
     accumulators.mapValues(_.localValue).toMap
   }
 
-  private[spark] override val internalMetricsToAccumulators: Map[String, Accumulator[Long]] = {
+  //private[spark]
+  override val internalMetricsToAccumulators: Map[String, Accumulator[Long]] = {
     // Explicitly register internal accumulators here because these are
     // not captured in the task closure and are already deserialized
     internalAccumulators.foreach(registerAccumulator)

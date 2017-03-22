@@ -36,7 +36,8 @@ private[sql] case class CachedData(plan: LogicalPlan, cachedRepresentation: InMe
  *
  * Internal to Spark SQL.
  */
-private[sql] class CacheManager extends Logging {
+//private[sql]
+class CacheManager extends Logging {
 
   @transient
   private val cachedData = new scala.collection.mutable.ArrayBuffer[CachedData]

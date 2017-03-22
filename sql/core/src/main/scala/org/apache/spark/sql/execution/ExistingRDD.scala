@@ -94,7 +94,8 @@ private[sql] case class LogicalRDD(
 }
 
 /** Physical plan node for scanning data from an RDD. */
-private[sql] case class PhysicalRDD(
+//private[sql]
+case class PhysicalRDD(
     output: Seq[Attribute],
     rdd: RDD[InternalRow],
     override val nodeName: String,

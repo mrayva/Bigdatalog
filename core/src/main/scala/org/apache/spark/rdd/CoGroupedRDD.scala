@@ -56,7 +56,8 @@ private[spark] case class NarrowCoGroupSplitDep(
  *                   the partition for that dependency) at the corresponding index. The size of
  *                   narrowDeps should always be equal to the number of parents.
  */
-private[spark] class CoGroupPartition(
+//private[spark]
+class CoGroupPartition(
     idx: Int, val narrowDeps: Array[Option[NarrowCoGroupSplitDep]])
   extends Partition with Serializable {
   override val index: Int = idx

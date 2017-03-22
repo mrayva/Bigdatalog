@@ -192,7 +192,8 @@ abstract class TaskContext extends Serializable {
   /**
    * Returns the manager for this task's managed memory.
    */
-  private[spark] def taskMemoryManager(): TaskMemoryManager
+  //private[spark]
+  def taskMemoryManager(): TaskMemoryManager
 
   /**
    * Register an accumulator that belongs to this task. Accumulators must call this method when
@@ -215,5 +216,6 @@ abstract class TaskContext extends Serializable {
   /**
    * Accumulators for tracking internal metrics indexed by the name.
    */
-  private[spark] val internalMetricsToAccumulators: Map[String, Accumulator[Long]]
+  //private[spark]
+  val internalMetricsToAccumulators: Map[String, Accumulator[Long]]
 }

@@ -21,18 +21,17 @@ import java.nio.ByteBuffer
 import java.util.{HashMap => JavaHashMap}
 
 import scala.reflect.ClassTag
-
 import com.esotericsoftware.kryo.io.{Input, Output}
 import com.esotericsoftware.kryo.{Kryo, Serializer}
 import com.twitter.chill.ResourcePool
-
 import org.apache.spark.serializer.{KryoSerializer, SerializerInstance}
-import org.apache.spark.sql.types.Decimal
+import org.apache.spark.sql.types.{Decimal, StructField, StructType}
 import org.apache.spark.util.MutablePair
 import org.apache.spark.{SparkConf, SparkEnv}
 
 
-private[sql] class SparkSqlSerializer(conf: SparkConf) extends KryoSerializer(conf) {
+//private[sql]
+class SparkSqlSerializer(conf: SparkConf) extends KryoSerializer(conf) {
   override def newKryo(): Kryo = {
     val kryo = super.newKryo()
     kryo.setRegistrationRequired(false)
@@ -45,6 +44,10 @@ private[sql] class SparkSqlSerializer(conf: SparkConf) extends KryoSerializer(co
 
     kryo.register(classOf[Decimal])
     kryo.register(classOf[JavaHashMap[_, _]])
+
+    // APS
+    kryo.register(classOf[StructType])
+    kryo.register(classOf[StructField])
 
     kryo.setReferences(false)
     kryo
@@ -62,7 +65,8 @@ private[execution] class KryoResourcePool(size: Int)
   def newInstance(): SerializerInstance = ser.newInstance()
 }
 
-private[sql] object SparkSqlSerializer {
+//private[sql]
+object SparkSqlSerializer {
   @transient lazy val resourcePool = new KryoResourcePool(30)
 
   private[this] def acquireRelease[O](fn: SerializerInstance => O): O = {

@@ -161,4 +161,16 @@ private[spark] class DiskStore(blockManager: BlockManager, diskManager: DiskBloc
     val file = diskManager.getFile(blockId.name)
     file.exists()
   }
+
+  def replaceBlock(oldBlockId: BlockId, newBlockId: BlockId): Boolean = {
+    val oldFile = diskManager.getFile(oldBlockId)
+    remove(oldBlockId)
+
+    val newFile = diskManager.getFile(newBlockId)
+    newFile.renameTo(oldFile)
+
+    logInfo(s"Replaced on-disk data of block $oldBlockId with data from $newBlockId")
+
+    true
+  }
 }

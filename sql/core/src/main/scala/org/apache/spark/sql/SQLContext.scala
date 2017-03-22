@@ -64,10 +64,11 @@ import org.apache.spark.{SparkContext, SparkException}
  *
  * @since 1.0.0
  */
-class SQLContext private[sql](
+class SQLContext //private[sql]
+(
     @transient val sparkContext: SparkContext,
-    @transient protected[sql] val cacheManager: CacheManager,
-    @transient private[sql] val listener: SQLListener,
+    @transient /*protected[sql]*/ val cacheManager: CacheManager,
+    @transient /*private[sql]*/ val listener: SQLListener,
     val isRootContext: Boolean)
   extends org.apache.spark.Logging with Serializable {
 
@@ -117,7 +118,7 @@ class SQLContext private[sql](
   /**
    * @return Spark SQL configuration
    */
-  protected[sql] lazy val conf = new SQLConf
+  /*protected[sql]*/ lazy val conf = new SQLConf
 
   /**
    * Set Spark SQL configuration properties.
@@ -183,13 +184,16 @@ class SQLContext private[sql](
   lazy val listenerManager: ExecutionListenerManager = new ExecutionListenerManager
 
   @transient
-  protected[sql] lazy val catalog: Catalog = new SimpleCatalog(conf)
+  //protected[sql]
+  lazy val catalog: Catalog = new SimpleCatalog(conf)
 
   @transient
-  protected[sql] lazy val functionRegistry: FunctionRegistry = FunctionRegistry.builtin.copy()
+  //protected[sql]
+  lazy val functionRegistry: FunctionRegistry = FunctionRegistry.builtin.copy()
 
   @transient
-  protected[sql] lazy val analyzer: Analyzer =
+  //protected[sql]
+  lazy val analyzer: Analyzer =
     new Analyzer(catalog, functionRegistry, conf) {
       override val extendedResolutionRules =
         ExtractPythonUDFs ::
@@ -202,7 +206,7 @@ class SQLContext private[sql](
     }
 
   @transient
-  protected[sql] lazy val optimizer: Optimizer = DefaultOptimizer(conf)
+  protected[sql] lazy val optimizer: Optimizer = DefaultOptimizer
 
   @transient
   protected[sql] val ddlParser = new DDLParser(sqlParser.parse(_))
@@ -524,7 +528,7 @@ class SQLContext private[sql](
    * Creates a DataFrame from an RDD[Row]. User can specify whether the input rows should be
    * converted to Catalyst rows.
    */
-  private[sql]
+  //private[sql]
   def internalCreateDataFrame(catalystRows: RDD[InternalRow], schema: StructType) = {
     // TODO: use MutableProjection when rowRDD is another DataFrame and the applied
     // schema differs from the existing schema on any field data type.
@@ -883,7 +887,8 @@ class SQLContext private[sql](
   protected[sql] class SparkPlanner extends sparkexecution.SparkPlanner(this)
 
   @transient
-  protected[sql] val planner: sparkexecution.SparkPlanner = new sparkexecution.SparkPlanner(this)
+  //protected[sql]
+  val planner: sparkexecution.SparkPlanner = new sparkexecution.SparkPlanner(this)
 
   @transient
   protected[sql] lazy val emptyResult = sparkContext.parallelize(Seq.empty[InternalRow], 1)
@@ -893,7 +898,8 @@ class SQLContext private[sql](
    * row format conversions as needed.
    */
   @transient
-  protected[sql] val prepareForExecution = new RuleExecutor[SparkPlan] {
+  //protected[sql]
+  val prepareForExecution = new RuleExecutor[SparkPlan] {
     val batches = Seq(
       Batch("Add exchange", Once, EnsureRequirements(self)),
       Batch("Add row converters", Once, EnsureRowFormats)
@@ -1299,11 +1305,13 @@ object SQLContext {
     }
   }
 
-  private[sql] def clearInstantiatedContext(): Unit = {
+  //private[sql]
+  def clearInstantiatedContext(): Unit = {
     instantiatedContext.set(null)
   }
 
-  private[sql] def setInstantiatedContext(sqlContext: SQLContext): Unit = {
+  //private[sql]
+  def setInstantiatedContext(sqlContext: SQLContext): Unit = {
     synchronized {
       val ctx = instantiatedContext.get()
       if (ctx == null || ctx.sparkContext.isStopped) {
@@ -1312,7 +1320,8 @@ object SQLContext {
     }
   }
 
-  private[sql] def getInstantiatedContextOption(): Option[SQLContext] = {
+  //private[sql]
+  def getInstantiatedContextOption(): Option[SQLContext] = {
     Option(instantiatedContext.get())
   }
 
@@ -1337,7 +1346,8 @@ object SQLContext {
     activeContext.remove()
   }
 
-  private[sql] def getActive(): Option[SQLContext] = {
+  //private[sql]
+  def getActive(): Option[SQLContext] = {
     Option(activeContext.get())
   }
 
@@ -1363,7 +1373,8 @@ object SQLContext {
   /**
    * Create a SQLListener then add it into SparkContext, and create an SQLTab if there is SparkUI.
    */
-  private[sql] def createListenerAndUI(sc: SparkContext): SQLListener = {
+  //private[sql]
+  def createListenerAndUI(sc: SparkContext): SQLListener = {
     val listener = new SQLListener(sc.conf)
     sc.addSparkListener(listener)
     sc.ui.foreach(new SQLTab(listener, _))
