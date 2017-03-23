@@ -26,13 +26,15 @@ class FixedPointJobDefinition(val setupIteration: (FixedPointJobDefinition, RDD[
                               val cleanupIteration: (Int) => Unit) {
   var _fixedPointEvaluator: (TaskContext, Iterator[_]) => Boolean = null
   var finalRDD: RDD[_] = null
-  var rddIds = Array.empty[Int] // for all and delta rdd id for FixedPointResultTask execution on worker
+  var rddIds = Array.empty[Int] // for all and delta rdd id
+                                // for FixedPointResultTask execution on worker
 
-  def fixedPointEvaluator(fixedPointEvaluator: (TaskContext, Iterator[_]) => Boolean) = {
+  def fixedPointEvaluator(fixedPointEvaluator: (TaskContext, Iterator[_]) => Boolean) : Unit = {
     _fixedPointEvaluator = fixedPointEvaluator
   }
 
-  def getfixedPointEvaluator = _fixedPointEvaluator.asInstanceOf[(TaskContext, Iterator[_]) => _]
+  def getfixedPointEvaluator : (TaskContext, Iterator[_]) => _ =
+                               _fixedPointEvaluator.asInstanceOf[(TaskContext, Iterator[_]) => _]
 
   def getFinalRDD: RDD[_] = finalRDD
 

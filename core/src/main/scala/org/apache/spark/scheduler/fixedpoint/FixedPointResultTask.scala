@@ -35,7 +35,8 @@ class FixedPointResultTask[T, U](stageId: Int,
                                  internalAccumulators: Seq[Accumulator[Long]],
                                  hasParent: Boolean,
                                  rddIds: Array[Int])
-  extends ResultTask[T,U](stageId, stageAttemptId, taskBinary, partition, locs, outputId, internalAccumulators) with Serializable {
+  extends ResultTask[T, U](stageId, stageAttemptId, taskBinary, partition,
+                          locs, outputId, internalAccumulators) with Serializable {
 
   @transient private[this] val preferredLocs: Seq[TaskLocation] = {
     if (locs == null) Nil else locs.toSet.toSeq
@@ -53,10 +54,14 @@ class FixedPointResultTask[T, U](stageId: Int,
 
     var result = func(context, rdd.iterator(partition, context))
 
-    // The idea here is that since we're confined to operating within the deployed task, which is already assigned to operate on specific rdd (ids)
-    // we must manipulate the blocks in the executor's blockmanager to 'fool' it in to allowing us to replay the same task over different rdd partitions.
-    // So each iteration we replace the data of the previous iteration's partition with the data from the newly produced partition,
-    // for both the all-set and delta-set (for the recursive predicate driving evaluation).  This keeps the rdd id's intact but func be applied repeatedly.
+    // The idea here is that since we're confined to operating within the deployed task,
+    // which is already assigned to operate on specific rdd (ids)
+    // we must manipulate the blocks in the executor's blockmanager to 'fool' it in to allowing us
+    // to replay the same task over different rdd partitions.
+    // So each iteration we replace the data of the previous iteration's partition
+    // with the data from the newly produced partition,
+    // for both the all-set and delta-set (for the recursive predicate driving evaluation).
+    // This keeps the rdd id's intact but func be applied repeatedly.
     if (!hasParent && rddIds.nonEmpty) {
       val newAllRDDId = rddIds(0)
       val oldAllRDDId = rddIds(1)
@@ -106,19 +111,21 @@ class FixedPointResultTask[T, U](stageId: Int,
   }
 
   // This is only callable on the driver side.
-  //override def preferredLocations: Seq[TaskLocation] = preferredLocs
+  // override def preferredLocations: Seq[TaskLocation] = preferredLocs
 
   override def toString: String = "FixedPointResultTask(" + stageId + ", " + partitionId + ")"
 
   private def getRDD(rddId: Int, rdd: RDD[_]): RDD[_] = {
-    if (rdd.id == rddId)
+    if (rdd.id == rddId) {
       return rdd
+    }
 
     if (rdd.dependencies != null) {
       for (dep <- rdd.dependencies) {
         val rdd = getRDD(rddId, dep.rdd)
-        if (rdd != null)
+        if (rdd != null) {
           return rdd
+        }
       }
     }
 

@@ -23,7 +23,7 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.types._
 
 /** The mode of an [[AggregateFunction]]. */
-//private[sql]
+// private[sql]
 sealed trait AggregateMode
 
 /**
@@ -31,7 +31,7 @@ sealed trait AggregateMode
  * This function updates the given aggregation buffer with the original input of this
  * function. When it has processed all input rows, the aggregation buffer is returned.
  */
-//private[sql]
+// private[sql]
 case object Partial extends AggregateMode
 
 /**
@@ -40,7 +40,7 @@ case object Partial extends AggregateMode
  * This function updates the given aggregation buffer by merging multiple aggregation buffers.
  * When it has processed all input rows, the aggregation buffer is returned.
  */
-//private[sql]
+// private[sql]
 case object PartialMerge extends AggregateMode
 
 /**
@@ -49,7 +49,7 @@ case object PartialMerge extends AggregateMode
  * This function updates the given aggregation buffer by merging multiple aggregation buffers.
  * When it has processed all input rows, the final result of this function is returned.
  */
-//private[sql]
+// private[sql]
 case object Final extends AggregateMode
 
 /**
@@ -58,14 +58,14 @@ case object Final extends AggregateMode
  * This function updates the given aggregation buffer with the original input of this
  * function. When it has processed all input rows, the final result of this function is returned.
  */
-//private[sql]
+// private[sql]
 case object Complete extends AggregateMode
 
 /**
  * A place holder expressions used in code-gen, it does not change the corresponding value
  * in the row.
  */
-//private[sql]
+// private[sql]
 case object NoOp extends Expression with Unevaluable {
   override def nullable: Boolean = true
   override def dataType: DataType = NullType
@@ -76,7 +76,7 @@ case object NoOp extends Expression with Unevaluable {
  * A container for an [[AggregateFunction]] with its [[AggregateMode]] and a field
  * (`isDistinct`) indicating if DISTINCT keyword is specified for this function.
  */
-//private[sql]
+// private[sql]
 case class AggregateExpression(
     aggregateFunction: AggregateFunction,
     mode: AggregateMode,

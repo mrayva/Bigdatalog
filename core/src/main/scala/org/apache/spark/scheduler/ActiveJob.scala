@@ -53,7 +53,7 @@ private[spark] class ActiveJob(
    * to compute all partitions in their target RDD, for actions like first() and lookup().
    */
   // APS
-  def numPartitions = finalStage match {
+  def numPartitions : Int = finalStage match {
     case r: ResultStage => r.partitions.length
     case m: ShuffleMapStage => m.rdd.partitions.length
   }

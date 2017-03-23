@@ -720,7 +720,7 @@ abstract class RDD[T: ClassTag](
    * which should be `false` unless this is a pair RDD and the input function doesn't modify
    * the keys.
    */
-  //private[spark]
+  // private[spark]
   def mapPartitionsInternal[U: ClassTag](
       f: Iterator[T] => Iterator[U],
       preservesPartitioning: Boolean = false): RDD[U] = withScope {
@@ -1652,7 +1652,7 @@ abstract class RDD[T: ClassTag](
 
   private[spark] def elementClassTag: ClassTag[T] = classTag[T]
 
-  //private[spark]
+  // private[spark]
   var checkpointData: Option[RDDCheckpointData[T]] = None
 
   /** Returns the first parent RDD */
@@ -1686,7 +1686,7 @@ abstract class RDD[T: ClassTag](
   }
 
   // Avoid handling doCheckpoint multiple times to prevent excessive recursion
-  //private
+  // private
   @transient var doCheckpointCalled = false
 
   /**

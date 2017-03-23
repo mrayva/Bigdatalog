@@ -513,7 +513,8 @@ private[sql] class SQLConf extends Serializable with CatalystConf {
 
   private[spark] def columnBatchSize: Int = getConf(COLUMN_BATCH_SIZE)
 
-  /*private[spark] */def numShufflePartitions: Int = getConf(SHUFFLE_PARTITIONS)
+  // private[spark]
+  def numShufflePartitions: Int = getConf(SHUFFLE_PARTITIONS)
 
   private[spark] def targetPostShuffleInputSize: Long =
     getConf(SHUFFLE_TARGET_POSTSHUFFLE_INPUT_SIZE)

@@ -32,5 +32,5 @@ package org.apache.spark.sql.catalyst.plans.logical
  * @param sizeInBytes Physical size in bytes. For leaf operators this defaults to 1, otherwise it
  *                    defaults to the product of children's `sizeInBytes`.
  */
-//private[sql]
+// private[sql]
 case class Statistics(sizeInBytes: BigInt)

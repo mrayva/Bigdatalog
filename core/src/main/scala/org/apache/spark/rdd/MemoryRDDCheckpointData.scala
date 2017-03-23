@@ -26,12 +26,13 @@ class MemoryRDDCheckpointData[T: ClassTag](@transient private val rdd: RDD[T])
   protected override def doCheckpoint(): CheckpointRDD[T] = {
     val level = rdd.getStorageLevel
     // If you're using this, persist with storage level using memory before reaching this code.
-    // By the time this method is reached, the rdd should already be cached.  This is part of truncating the lineage.
+    // By the time this method is reached, the rdd should already be cached.
+    // This is part of truncating the lineage.
     // We do not set the storage level here so the user intentionally receives the error.
 
     // LocalCheckpointing is not sufficient for this purpose since it requires executing a new job.
-    // If instead local checkpointing, or checkpointing in general, was integrated into the block manager,
-    // this approach would become unnecessary.
+    // If instead local checkpointing, or checkpointing in general, was integrated
+    // into the block manager, this approach would become unnecessary.
 
     // Assume storage level uses memory; otherwise eviction may cause data loss
     assume(level.useMemory, s"Storage level $level is not appropriate for memory checkpointing")

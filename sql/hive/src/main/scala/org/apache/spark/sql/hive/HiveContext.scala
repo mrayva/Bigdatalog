@@ -453,12 +453,13 @@ class HiveContext private[hive](
 
   /* A catalyst metadata catalog that points to the Hive Metastore. */
   @transient
-  override /*protected[sql]*/ lazy val catalog =
+  // protected[sql]
+  override lazy val catalog =
     new HiveMetastoreCatalog(metadataHive, this) with OverrideCatalog
 
   // Note that HiveUDFs will be overridden by functions registered in this context.
-  @transient   
-  //protected[sql]
+  @transient
+  // protected[sql]
   override lazy val functionRegistry: FunctionRegistry =
     new HiveFunctionRegistry(FunctionRegistry.builtin.copy(), this.executionHive)
 
@@ -470,7 +471,8 @@ class HiveContext private[hive](
 
   /* An analyzer that uses the Hive metastore. */
   @transient
-  override /*protected[sql]*/ lazy val analyzer: Analyzer =
+  // protected[sql]
+  override lazy val analyzer: Analyzer =
     new Analyzer(catalog, functionRegistry, conf) {
       override val extendedResolutionRules =
         catalog.ParquetConversions ::
@@ -555,7 +557,7 @@ class HiveContext private[hive](
     c
   }
 
-  //protected[sql]
+  // protected[sql]
   override lazy val conf: SQLConf = new SQLConf {
     override def dialect: String = getConf(SQLConf.DIALECT, "hiveql")
     override def caseSensitiveAnalysis: Boolean = getConf(SQLConf.CASE_SENSITIVE, false)
@@ -609,7 +611,8 @@ class HiveContext private[hive](
   }
 
   @transient
-  override /*protected[sql]*/ val planner = hivePlanner
+  // protected[sql]
+  override val planner = hivePlanner
 
   /** Extends QueryExecution with hive specific features. */
   protected[sql] class QueryExecution(logicalPlan: LogicalPlan)

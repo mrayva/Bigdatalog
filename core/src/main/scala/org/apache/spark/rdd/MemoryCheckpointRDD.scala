@@ -34,8 +34,9 @@ class MemoryCheckpointRDD[T: ClassTag](sc: SparkContext, rddId: Int, numPartitio
   /**
     * Throw an exception indicating that the relevant block is not found.
     *
-    * This should only be called if the original RDD is the block is evicted from memory, explicitly unpersisted or if an
-    * executor is lost. Under normal circumstances, however, the original RDD (our child)
+    * This should only be called if the original RDD is the block is evicted from memory,
+    * explicitly unpersisted or if an executor is lost.
+    * Under normal circumstances, however, the original RDD (our child)
     * is expected to be fully cached and so all partitions should already be computed and
     * available in the block storage.
     */
@@ -44,6 +45,7 @@ class MemoryCheckpointRDD[T: ClassTag](sc: SparkContext, rddId: Int, numPartitio
       s"Checkpoint block ${RDDBlockId(rddId, partition.index)} not found! Either the executor " +
         s"that originally checkpointed this partition is no longer alive, or the original RDD is " +
         s"unpersisted. If this problem persists, you may consider using `rdd.checkpoint()` " +
-        s"or `rdd.localcheckpoint()` instead, which are slower than memory checkpointing but more fault-tolerant.")
+        s"or `rdd.localcheckpoint()` instead, which are slower than memory checkpointing " +
+        s"but more fault-tolerant.")
   }
 }

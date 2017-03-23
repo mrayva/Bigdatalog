@@ -1218,11 +1218,13 @@ private[spark] class BlockManager(
   }
 
   /*
-   APS - so we can swap out blocks that we know will pass the memory-aware caching checks via sizeEstimator.
-    Experiments found SizeEstimator to be super expensive w.r.t. the total cost of an iteration, and this varies based on
-    the type of data structure used in SetRDD partitions.
+    APS - so we can swap out blocks that we know will pass the memory-aware
+    caching checks via sizeEstimator.
+    Experiments found SizeEstimator to be super expensive w.r.t. the total cost of an iteration,
+    and this varies based on the type of data structure used in SetRDD partitions.
   */
-  def replaceLocalBlock(oldBlockId: BlockId, newBlockId: BlockId, tellMaster : Boolean = true): Unit = {
+  def replaceLocalBlock(oldBlockId: BlockId, newBlockId: BlockId,
+                                             tellMaster : Boolean = true): Unit = {
     val info = blockInfo.get(oldBlockId).orNull
     val info2 = blockInfo.get(newBlockId).orNull
 
@@ -1233,13 +1235,16 @@ private[spark] class BlockManager(
           val replacedInMemory = memoryStore.replaceBlock(oldBlockId, newBlockId)
           val replacedOnDisk = diskStore.replaceBlock(oldBlockId, newBlockId)
           if (!replacedInMemory && !replacedOnDisk) {
-            logWarning(s"Block $oldBlockId could not be replaced as it was not found in either disk or memory")
+            logWarning(s"Block $oldBlockId could not be replaced as it was" +
+                       s"not found in either disk or memory")
           }
 
-          /*if (tellMaster && info.tellMaster) {
-            val status = getCurrentBlockStatus(oldBlockId, info)
-            reportBlockStatus(oldBlockId, info, status)
-          }*/
+          /*
+             if (tellMaster && info.tellMaster) {
+             val status = getCurrentBlockStatus(oldBlockId, info)
+             reportBlockStatus(oldBlockId, info, status)
+          }
+          */
 
           // now remove newBlock and tell the master so everyone knows its gone
           blockInfo.remove(newBlockId)

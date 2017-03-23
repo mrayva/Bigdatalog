@@ -646,15 +646,16 @@ class DAGScheduler(
     val start = System.nanoTime
     val deltaSPrimeRDD = fixedPointJobDefinition.setupIteration(fixedPointJobDefinition, rdd)
     val partitions = (0 until deltaSPrimeRDD.partitions.size).toArray
-    if (partitions.size == 0)
+    if (partitions.size == 0) {
       return
+    }
 
     val jobId = nextJobId.getAndIncrement()
 
     val listener = new FixedPointJobListener(this, jobId, partitions.size, fixedPointJobDefinition)
     eventProcessLoop.post(JobSubmitted(
-      jobId, deltaSPrimeRDD, fixedPointJobDefinition.getfixedPointEvaluator, partitions, callSite, listener,
-      SerializationUtils.clone(properties)))
+      jobId, deltaSPrimeRDD, fixedPointJobDefinition.getfixedPointEvaluator,
+      partitions, callSite, listener, SerializationUtils.clone(properties)))
 
     listener.awaitResult() match {
       case JobSucceeded =>
@@ -899,8 +900,10 @@ class DAGScheduler(
     logInfo("Missing parents: " + getMissingParentStages(finalStage))
 
     // for tracking fixedpoint jobs
-    if (listener.isInstanceOf[FixedPointJobListener])
-      jobIdToFixedPointJobDefinition(jobId) = listener.asInstanceOf[FixedPointJobListener].fixedPointJobDefinition
+    if (listener.isInstanceOf[FixedPointJobListener]) {
+      jobIdToFixedPointJobDefinition(jobId) =
+                              listener.asInstanceOf[FixedPointJobListener].fixedPointJobDefinition
+    }
 
     val jobSubmissionTime = clock.getTimeMillis()
     jobIdToActiveJob(jobId) = job
@@ -925,7 +928,8 @@ class DAGScheduler(
     try {
       // New stage creation may throw an exception if, for example, jobs are run on a
       // HadoopRDD whose underlying HDFS files have been deleted.
-      nextIterationResultStage = newFixedPointResultStage(nextDeltaSPrimeRDD, resultStage.func, partitions, job.jobId, job.callSite)
+      nextIterationResultStage = newFixedPointResultStage(nextDeltaSPrimeRDD, resultStage.func,
+                                                          partitions, job.jobId, job.callSite)
     } catch {
       case e: Exception =>
         logWarning("Creating new stage failed due to exception - job: " + job.jobId, e)
@@ -943,9 +947,11 @@ class DAGScheduler(
 
       nextIterationResultStage.setActiveJob(job)
 
-      //val stageIds = nextIterationResultStage.parents.map(_.id) ++ Seq(nextIterationResultStage.id)
-      //val stageInfos = stageIds.flatMap(id => stageIdToStage.get(id).map(_.latestInfo))
-      //listenerBus.post(SparkListenerJobIterationStart(job.jobId, clock.getTimeMillis(), stageInfos))
+      /*
+      val stageIds = nextIterationResultStage.parents.map(_.id) ++ Seq(nextIterationResultStage.id)
+      val stageInfos = stageIds.flatMap(id => stageIdToStage.get(id).map(_.latestInfo))
+      listenerBus.post(SparkListenerJobIterationStart(job.jobId,clock.getTimeMillis(),stageInfos))
+      */
 
       submitStage(nextIterationResultStage)
     }
@@ -1277,8 +1283,10 @@ class DAGScheduler(
                      If not, introduce another stage of the recursive rules.
                   */
                   if (jobFinished && jobIdToFixedPointJobDefinition.contains(job.jobId)) {
-                    //listenerBus.post(SparkListenerJobIterationEnd(job.jobId, clock.getTimeMillis()))
-                    // if the job is done and its a fixed point job, check if we have reached a fixed point
+                  // listenerBus.post(SparkListenerJobIterationEnd(job.jobId,
+                  //                  clock.getTimeMillis()))
+                  // if the job is done and its a fixed point job,
+                  // check if we have reached a fixed point
                     val listener = job.listener.asInstanceOf[FixedPointJobListener]
                     if (listener.isFixedPointReached) {
                       cleanupStateForJobAndIndependentStages(job)
@@ -1425,8 +1433,10 @@ class DAGScheduler(
     submitWaitingStages()
   }
 
-  // Go through the last ResultStage's dependencies and apply memory checkpointing to trunate the lineage
-  private def doMemoryCheckpoint(job: ActiveJob, fpjd: FixedPointJobDefinition, resultStage: ResultStage): Unit = {
+  // Go through the last ResultStage's dependencies and
+  // apply memory checkpointing to trunate the lineage
+  private def doMemoryCheckpoint(job: ActiveJob, fpjd: FixedPointJobDefinition,
+                                                 resultStage: ResultStage): Unit = {
     val rdd = resultStage.rdd
     if (!rdd.doCheckpointCalled) {
       rdd.doCheckpointCalled = true
@@ -1444,7 +1454,8 @@ class DAGScheduler(
                 r.checkpointData.get.checkpoint()
                 r.doCheckpointCalled = true
               }
-              // we aren't checkpointed at this level, so put the dependencies on the stack to see if they are
+              // we aren't checkpointed at this level,
+              // so put the dependencies on the stack to see if they are
               case _ => r.dependencies.foreach(dep => waitingForVisit.push(dep.rdd))
             }
           }

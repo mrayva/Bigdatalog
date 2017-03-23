@@ -22,7 +22,8 @@ import org.apache.spark.scheduler._
 class FixedPointJobListener(dagScheduler: DAGScheduler,
                             val jobId: Int,
                             numPartitions: Int,
-                            val fixedPointJobDefinition: FixedPointJobDefinition) extends JobListener {
+                            val fixedPointJobDefinition: FixedPointJobDefinition)
+                            extends JobListener {
 
   var emptyPartitions: Int = 0
   var isFixedPointReached = false
@@ -35,20 +36,9 @@ class FixedPointJobListener(dagScheduler: DAGScheduler,
   override def taskSucceeded(index: Int, result: Any): Unit = synchronized {
     if (result.isInstanceOf[Long]) {
       val count = result.asInstanceOf[Long]
-      if (count == 0)
+      if (count == 0) {
         emptyPartitions += 1
-
-      // if null we only want one iteration
-      if (fixedPointJobDefinition == null) {
-        fixedPointReached()
-      } else if (emptyPartitions == numPartitions) {
-        isFixedPointReached = true
-        // Notify any waiting thread that may have called awaitResult
-        //this.notifyAll()
       }
-    } else if (result.isInstanceOf[Boolean]) { // true means the deltaS for the partition is not empty
-      if (!result.asInstanceOf[Boolean])
-        emptyPartitions += 1
 
       // if null we only want one iteration
       if (fixedPointJobDefinition == null) {
@@ -56,12 +46,26 @@ class FixedPointJobListener(dagScheduler: DAGScheduler,
       } else if (emptyPartitions == numPartitions) {
         isFixedPointReached = true
         // Notify any waiting thread that may have called awaitResult
-        //this.notifyAll()
+        // this.notifyAll()
+      }
+    } else if (result.isInstanceOf[Boolean]) {
+      // true means the deltaS for the partition is not empty
+      if (!result.asInstanceOf[Boolean]) {
+        emptyPartitions += 1
+      }
+
+      // if null we only want one iteration
+      if (fixedPointJobDefinition == null) {
+        fixedPointReached()
+      } else if (emptyPartitions == numPartitions) {
+        isFixedPointReached = true
+        // Notify any waiting thread that may have called awaitResult
+        // this.notifyAll()
       }
     }
   }
 
-  def reset() = {
+  def reset() : Unit = {
     emptyPartitions = 0
     jobResult.synchronized {
       jobResult = None
@@ -71,13 +75,14 @@ class FixedPointJobListener(dagScheduler: DAGScheduler,
 
   def fixedPointReached(): Unit = synchronized {
     jobResult.synchronized {
-      if (!jobResult.isDefined)
+      if (!jobResult.isDefined) {
         jobResult = Some(JobSucceeded)
+      }
     }
     this.notifyAll()
   }
 
-  override def jobFailed(exception: Exception) = synchronized {
+  override def jobFailed(exception: Exception) : Unit = synchronized {
     jobResult.synchronized {
       jobResult = Some(JobFailed(exception))
     }

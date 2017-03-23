@@ -380,7 +380,7 @@ object CatalystTypeConverters {
    * Typical use case would be converting a collection of rows that have the same schema. You will
    * call this function once to get a converter, and apply it to every row.
    */
-  //private[sql]
+  // private[sql]
   def createToCatalystConverter(dataType: DataType): Any => Any = {
     if (isPrimitive(dataType)) {
       // Although the `else` branch here is capable of handling inbound conversion of primitives,
@@ -408,7 +408,7 @@ object CatalystTypeConverters {
    * Typical use case would be converting a collection of rows that have the same schema. You will
    * call this function once to get a converter, and apply it to every row.
    */
-  //private[sql]
+  // private[sql]
   def createToScalaConverter(dataType: DataType): Any => Any = {
     if (isPrimitive(dataType)) {
       identity

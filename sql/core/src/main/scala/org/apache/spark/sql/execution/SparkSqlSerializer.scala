@@ -30,7 +30,7 @@ import org.apache.spark.util.MutablePair
 import org.apache.spark.{SparkConf, SparkEnv}
 
 
-//private[sql]
+// private[sql]
 class SparkSqlSerializer(conf: SparkConf) extends KryoSerializer(conf) {
   override def newKryo(): Kryo = {
     val kryo = super.newKryo()
@@ -65,7 +65,7 @@ private[execution] class KryoResourcePool(size: Int)
   def newInstance(): SerializerInstance = ser.newInstance()
 }
 
-//private[sql]
+// private[sql]
 object SparkSqlSerializer {
   @transient lazy val resourcePool = new KryoResourcePool(30)
 

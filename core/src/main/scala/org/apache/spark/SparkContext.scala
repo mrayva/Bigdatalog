@@ -1997,15 +1997,17 @@ class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationCli
   }
 
   /**
-    * Run a fixedpoint (i.e., Datalog) program as the given RDD and pass the back to the caller specified in 'FixedPointJobDefinition'
+    * Run a fixedpoint (i.e., Datalog) program as the given RDD
+    * and pass the back to the caller specified in 'FixedPointJobDefinition'
     * Termination condition specified as 'fixedPointEvaluator'.
     */
   def runFixedPointJob[T](rdd: RDD[_],
                           fixedPointJobDefinition: FixedPointJobDefinition,
-                          fixedPointEvaluator: (Iterator[_]) => Boolean) = {
+                          fixedPointEvaluator: (Iterator[_]) => Boolean) : Unit = {
     assertNotStopped()
     val callSite = getCallSite
-    val cleanedFixedPointFunc = clean((context: TaskContext, iter: Iterator[_]) => fixedPointEvaluator(iter))
+    val cleanedFixedPointFunc = clean((context: TaskContext, iter: Iterator[_]) =>
+                                                                        fixedPointEvaluator(iter))
     fixedPointJobDefinition.fixedPointEvaluator(cleanedFixedPointFunc)
 
     dagScheduler.runFixedPointJob(rdd, fixedPointJobDefinition, callSite, localProperties.get)

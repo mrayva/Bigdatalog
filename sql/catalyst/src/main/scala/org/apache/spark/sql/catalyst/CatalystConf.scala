@@ -17,7 +17,7 @@
 
 package org.apache.spark.sql.catalyst
 
-//private[spark]
+// private[spark]
 trait CatalystConf {
   def caseSensitiveAnalysis: Boolean
 

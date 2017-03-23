@@ -29,7 +29,7 @@ import org.apache.spark.sql.execution.datasources.{CreateTableUsing, CreateTempT
 import org.apache.spark.sql.execution.{DescribeCommand => RunnableDescribeCommand}
 import org.apache.spark.sql.{Strategy, execution}
 
-//private[sql]
+// private[sql]
 abstract class SparkStrategies extends QueryPlanner[SparkPlan] {
   self: SparkPlanner =>
 

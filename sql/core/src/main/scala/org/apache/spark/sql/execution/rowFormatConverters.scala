@@ -60,7 +60,7 @@ case class ConvertToSafe(child: SparkPlan) extends UnaryNode {
   }
 }
 
-//private[sql]
+// private[sql]
 object EnsureRowFormats extends Rule[SparkPlan] {
 
   private def onlyHandlesSafeRows(operator: SparkPlan): Boolean =

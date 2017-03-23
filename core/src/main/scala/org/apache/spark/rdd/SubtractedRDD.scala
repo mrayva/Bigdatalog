@@ -48,7 +48,7 @@ import org.apache.spark.serializer.Serializer
  * you can use `rdd1`'s partitioner/partition size and not worry about running
  * out of memory because of the size of `rdd2`.
  */
-//private[spark]
+// private[spark]
 class SubtractedRDD[K: ClassTag, V: ClassTag, W: ClassTag](
     @transient var rdd1: RDD[_ <: Product2[K, V]],
     @transient var rdd2: RDD[_ <: Product2[K, W]],

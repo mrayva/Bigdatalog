@@ -583,14 +583,15 @@ private[spark] class MemoryStore(blockManager: BlockManager, memoryManager: Memo
     )
     logMemoryUsage()
   }
-  
-  /**
-   * APS - Moves entry at key newBlockId to key oldBlockId, removes entry at key newBlockId and adjust memory accounting.
+
+  /*
+   * APS - Moves entry at key newBlockId to key oldBlockId,
+   * removes entry at key newBlockId and adjust memory accounting.
    *
    * @param oldBlockId the ID of the block we replacing
    * @param newBlockId the ID of the block we replacing oldBlockId with
-    * @return true if both blocks are found, false otherwise
-    * */
+   * @return true if both blocks are found, false otherwise
+   */
   def replaceBlock(oldBlockId: BlockId, newBlockId: BlockId): Boolean = {
     var changeInMemorySize = 0L
     var entryToRemove: MemoryEntry = null
@@ -623,5 +624,5 @@ private[spark] class MemoryStore(blockManager: BlockManager, memoryManager: Memo
         s"from memory (free ${maxMemory - blocksMemoryUsed})")
     }
     result
-  }  
+  }
 }

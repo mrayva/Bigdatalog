@@ -79,7 +79,7 @@ private[sql] class LongSQLMetricValue(private var _value : Long) extends SQLMetr
  * A specialized long Accumulable to avoid boxing and unboxing when using Accumulator's
  * `+=` and `add`.
  */
-//private[sql]
+// private[sql]
 class LongSQLMetric private[metric](name: String, param: LongSQLMetricParam)
   extends SQLMetric[LongSQLMetricValue, Long](name, param) {
 
@@ -105,7 +105,7 @@ private class LongSQLMetricParam(val stringValue: Seq[Long] => String, initialVa
   override def zero: LongSQLMetricValue = new LongSQLMetricValue(initialValue)
 }
 
-//private[sql]
+// private[sql]
 object SQLMetrics {
 
   private def createLongMetric(

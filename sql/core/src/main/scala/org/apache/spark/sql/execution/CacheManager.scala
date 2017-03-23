@@ -36,7 +36,7 @@ private[sql] case class CachedData(plan: LogicalPlan, cachedRepresentation: InMe
  *
  * Internal to Spark SQL.
  */
-//private[sql]
+// private[sql]
 class CacheManager extends Logging {
 
   @transient
