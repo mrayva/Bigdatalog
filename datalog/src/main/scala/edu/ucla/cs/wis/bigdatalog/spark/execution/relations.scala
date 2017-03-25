@@ -25,19 +25,24 @@ import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.execution.LeafNode
 import org.apache.spark.sql.catalyst.InternalRow
 
-abstract class RecursiveRelation(name: String, output: Seq[Attribute], partitioning: Seq[Int])
-  extends LeafNode {
+abstract class RecursiveRelation(name: String,
+                                 output: Seq[Attribute],
+                                 partitioning: Seq[Int])
+    extends LeafNode {
 
   @transient
-  final val bigDatalogContext = SQLContext.getActive().getOrElse(null).asInstanceOf[BigDatalogContext]
+  final val bigDatalogContext =
+    SQLContext.getActive().getOrElse(null).asInstanceOf[BigDatalogContext]
 
-  override def simpleString = s"$nodeName " + output.mkString("[", ",", "]") + "(" + name + ")"
+  override def simpleString: String =
+    s"$nodeName " + output.mkString("[", ",", "]") + "(" + name + ")"
 
   override def outputPartitioning: Partitioning = {
-    if (partitioning == null || partitioning.isEmpty)
+    if (partitioning == null || partitioning.isEmpty) {
       UnknownPartitioning(0)
-    else
-      new HashPartitioning(partitioning.zip(output).filter(_._1 == 1).map(_._2), bigDatalogContext.conf.numShufflePartitions)
+    } else new HashPartitioning(
+        partitioning.zip(output).filter(_._1 == 1).map(_._2),
+        bigDatalogContext.conf.numShufflePartitions)
   }
 
   override def outputsUnsafeRows: Boolean = true
@@ -47,11 +52,17 @@ abstract class RecursiveRelation(name: String, output: Seq[Attribute], partition
   }
 }
 
-case class LinearRecursiveRelation(name : String, output : Seq[Attribute], partitioning: Seq[Int])
-  extends RecursiveRelation(name, output, partitioning)
+case class LinearRecursiveRelation(name: String,
+                                   output: Seq[Attribute],
+                                   partitioning: Seq[Int])
+    extends RecursiveRelation(name, output, partitioning)
 
-case class NonLinearRecursiveRelation(name : String, output : Seq[Attribute], partitioning: Seq[Int])
-  extends RecursiveRelation("all_" + name, output, partitioning)
+case class NonLinearRecursiveRelation(name: String,
+                                      output: Seq[Attribute],
+                                      partitioning: Seq[Int])
+    extends RecursiveRelation("all_" + name, output, partitioning)
 
-case class AggregateRelation(name : String, output : Seq[Attribute], partitioning: Seq[Int])
-  extends RecursiveRelation(name, output, partitioning)
+case class AggregateRelation(name: String,
+                             output: Seq[Attribute],
+                             partitioning: Seq[Int])
+    extends RecursiveRelation(name, output, partitioning)

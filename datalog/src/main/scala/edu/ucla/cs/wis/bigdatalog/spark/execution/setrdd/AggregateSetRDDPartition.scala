@@ -22,11 +22,12 @@ import edu.ucla.cs.wis.bigdatalog.spark.execution.setrdd.SetRDDPartition
 import edu.ucla.cs.wis.bigdatalog.spark.storage.map.UnsafeFixedWidthMonotonicAggregationMap
 import org.apache.spark.sql.catalyst.InternalRow
 
-abstract class AggregateSetRDDPartition(val aggregateStore: UnsafeFixedWidthMonotonicAggregationMap,
-                                        val schemaInfo: SchemaInfo,
-                                        val monotonicAggregate: MonotonicAggregate)
-  extends Serializable
-  with org.apache.spark.Logging {
+abstract class AggregateSetRDDPartition(
+    val aggregateStore: UnsafeFixedWidthMonotonicAggregationMap,
+    val schemaInfo: SchemaInfo,
+    val monotonicAggregate: MonotonicAggregate)
+    extends Serializable
+    with org.apache.spark.Logging {
 
   def this() = this(null, null, null)
 
@@ -34,5 +35,7 @@ abstract class AggregateSetRDDPartition(val aggregateStore: UnsafeFixedWidthMono
 
   def iterator: Iterator[InternalRow]
 
-  def update(iter: Iterator[InternalRow], monotonicAggregate: MonotonicAggregate): (AggregateSetRDDPartition, SetRDDPartition[InternalRow])
+  def update(iter: Iterator[InternalRow],
+             monotonicAggregate: MonotonicAggregate)
+    : (AggregateSetRDDPartition, SetRDDPartition[InternalRow])
 }

@@ -25,23 +25,30 @@ import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{Exchange, Project, SparkPlan, aggregate}
 
 object ShuffleDistinct extends Rule[SparkPlan] {
-  // Since it is possible for a recursive query plan to produce a massive amount of duplicate tuples
-  // prior to a shuffle inside a recursion we want to deduplicate the output before the shuffle (aka map-side distinct).
-  // This approach looks for recursion operators that have exchange operators as their children, meaning the exit/recursive rules
-  // plan will be evaluated and then shuffled before set-deduplication in PSN is performed.
-  // Currently we look for project operators as a hint to deduplicate (since they will likely lead to dupdlicates) and
+  // Since it is possible for a recursive query plan to produce
+  // a massive amount of duplicate tuples
+  // prior to a shuffle inside a recursion we want to deduplicate the output
+  // before the shuffle (aka map-side distinct).
+  // This approach looks for recursion operators that have exchange operators as their children,
+  // meaning the exit/recursive rules plan will be evaluated and then shuffled before
+  // set-deduplication in PSN is performed.
+  // Currently we look for project operators as a hint to deduplicate
+  // (since they will likely lead to dupdlicates) and
   // this could be expanded to include other types of operators (i.e., joins).
 
   def apply(operator: SparkPlan): SparkPlan = operator.transformUp {
     case operator: SparkPlan => {
-      if (SparkEnv.get.conf.getBoolean("spark.datalog.shuffledistinct.enabled", false)) {
+      if (SparkEnv.get.conf.getBoolean("spark.datalog.shuffledistinct.enabled",
+                                       false)) {
         operator match {
           case recursion: Recursion => {
             val newLeft = recursion.left match {
               case exchange: Exchange => {
                 exchange.withNewChildren {
-                  exchange.children.map {
-                    c => if (c.isInstanceOf[Project]) insertDistinctAggregate(c.asInstanceOf[Project]) else c
+                  exchange.children.map { c =>
+                    if (c.isInstanceOf[Project]) {
+                      insertDistinctAggregate(c.asInstanceOf[Project])
+                    } else c
                   }
                 }
               }
@@ -50,8 +57,10 @@ object ShuffleDistinct extends Rule[SparkPlan] {
             val newRight = recursion.right match {
               case exchange: Exchange => {
                 exchange.withNewChildren {
-                  exchange.children.map {
-                    c => if (c.isInstanceOf[Project]) insertDistinctAggregate(c.asInstanceOf[Project]) else c
+                  exchange.children.map { c =>
+                    if (c.isInstanceOf[Project]) {
+                      insertDistinctAggregate(c.asInstanceOf[Project])
+                    } else c
                   }
                 }
               }
@@ -68,12 +77,14 @@ object ShuffleDistinct extends Rule[SparkPlan] {
     }
   }
 
-  // use the approach from execution.aggregate.utils to insert a disinct group-by operation (i.e., execution.aggregate)
+  // use the approach from execution.aggregate.utils to insert a disinct group-by operation
+  // (i.e., execution.aggregate)
   def insertDistinctAggregate(child: Project): SparkPlan = {
     // use the alias of any expressions
-    val resultExpressions = child.projectList.map (expr => expr match {
-      case alias: Alias => alias.toAttribute
-      case _ => expr
+    val resultExpressions = child.projectList.map(expr =>
+      expr match {
+        case alias: Alias => alias.toAttribute
+        case _ => expr
     })
 
     val groupingExpressions = resultExpressions
@@ -91,17 +102,22 @@ object ShuffleDistinct extends Rule[SparkPlan] {
     // aggregate function to the corresponding attribute of the function.
     val aggregateFunctionToAttribute = aggregateExpressions.map { agg =>
       val aggregateFunction = agg.aggregateFunction
-      val attribute = Alias(aggregateFunction, aggregateFunction.toString)().toAttribute
+      val attribute =
+        Alias(aggregateFunction, aggregateFunction.toString)().toAttribute
       (aggregateFunction, agg.isDistinct) -> attribute
     }.toMap
 
     val (functionsWithDistinct, functionsWithoutDistinct) =
       aggregateExpressions.partition(_.isDistinct)
-    if (functionsWithDistinct.map(_.aggregateFunction.children).distinct.length > 1) {
+    if (functionsWithDistinct
+          .map(_.aggregateFunction.children)
+          .distinct
+          .length > 1) {
       // This is a sanity check. We should not reach here when we have multiple distinct
       // column sets. Our MultipleDistinctRewriter should take care this case.
-      sys.error("You hit a query analyzer bug. Please report your query to " +
-        "Spark user mailing list.")
+      sys.error(
+        "You hit a query analyzer bug. Please report your query to " +
+          "Spark user mailing list.")
     }
 
     val namedGroupingExpressions = groupingExpressions.map {
@@ -122,20 +138,25 @@ object ShuffleDistinct extends Rule[SparkPlan] {
     // Thus, we must re-write the result expressions so that their attributes match up with
     // the attributes of the final result projection's input row:
     val rewrittenResultExpressions = resultExpressions.map { expr =>
-      expr.transformDown {
-        case AggregateExpression(aggregateFunction, _, isDistinct) =>
-          // The final aggregation buffer's attributes will be `finalAggregationAttributes`,
-          // so replace each aggregate expression by its corresponding attribute in the set:
-          aggregateFunctionToAttribute(aggregateFunction, isDistinct)
-        case expression =>
-          // Since we're using `namedGroupingAttributes` to extract the grouping key
-          // columns, we need to replace grouping key expressions with their corresponding
-          // attributes. We do not rely on the equality check at here since attributes may
-          // differ cosmetically. Instead, we use semanticEquals.
-          groupExpressionMap.collectFirst {
-            case (expr, ne) if expr semanticEquals expression => ne.toAttribute
-          }.getOrElse(expression)
-      }.asInstanceOf[NamedExpression]
+      expr
+        .transformDown {
+          case AggregateExpression(aggregateFunction, _, isDistinct) =>
+            // The final aggregation buffer's attributes will be `finalAggregationAttributes`,
+            // so replace each aggregate expression by its corresponding attribute in the set:
+            aggregateFunctionToAttribute(aggregateFunction, isDistinct)
+          case expression =>
+            // Since we're using `namedGroupingAttributes` to extract the grouping key
+            // columns, we need to replace grouping key expressions with their corresponding
+            // attributes. We do not rely on the equality check at here since attributes may
+            // differ cosmetically. Instead, we use semanticEquals.
+            groupExpressionMap
+              .collectFirst {
+                case (expr, ne) if expr semanticEquals expression =>
+                  ne.toAttribute
+              }
+              .getOrElse(expression)
+        }
+        .asInstanceOf[NamedExpression]
     }
 
     val aggregateOperator =

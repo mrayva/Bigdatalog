@@ -84,7 +84,7 @@ class LongKeysHashSetRowIterator(set: LongKeysHashSet) extends Iterator[Internal
 object HashSetRowIterator {
   def create(set: HashSet): Iterator[InternalRow] = {
     set match {
-      //case set: UnsafeFixedWidthSet => set.iterator().asScala
+      // case set: UnsafeFixedWidthSet => set.iterator().asScala
       case set: IntKeysHashSet => new IntKeysHashSetRowIterator(set)
       case set: LongKeysHashSet => new LongKeysHashSetRowIterator(set)
       case set: ObjectHashSet => new ObjectHashSetRowIterator(set)

@@ -23,6 +23,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.scheduler.fixedpoint.FixedPointJobDefinition
 import org.apache.spark.sql.SQLContext
 import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.physical.{ClusteredDistribution, HashPartitioning, Partitioning, UnknownPartitioning}
 import org.apache.spark.sql.execution.{BinaryNode, SparkPlan}
 import org.apache.spark.storage.StorageLevel
@@ -36,17 +37,19 @@ abstract class RecursionBase(name : String,
                              right : SparkPlan,
                              partitioning: Seq[Int])
   extends BinaryNode {
-  override def output = right.output
+  override def output : Seq[Attribute] = right.output
 
   @transient
-  final protected val bigDatalogContext = SQLContext.getActive().getOrElse(null).asInstanceOf[BigDatalogContext]
+  final protected val bigDatalogContext = SQLContext.getActive().getOrElse(null).
+                                                                 asInstanceOf[BigDatalogContext]
 
-  override def simpleString = {
+  override def simpleString : String = {
     var str = s"$nodeName " + output.mkString("[", ",", "]")  +
       " (" + (if (isLinearRecursion) "Linear" else "NonLinear") + ") [" + name + "]"
 
-    if (partitioning != null && partitioning != Nil)
+    if (partitioning != null && partitioning != Nil) {
       str += "[" + partitioning.mkString(",") + "]"
+    }
     str
   }
 
@@ -73,9 +76,12 @@ abstract class RecursionBase(name : String,
 
   // types of recursion versions match the paper (See sections 4,5) - default is Single-Job PSN (3)
   val version = bigDatalogContext.sparkContext.getConf.getInt("spark.datalog.recursion.version", 3)
-  // enabled for high-iteration programs because it will clear the lineage, otherwise a stack overflow could happen.
-  val doMemoryCheckpoint = bigDatalogContext.sparkContext.getConf.getBoolean("spark.datalog.recursion.memorycheckpoint", true)
-  val iterateInFixedPointResultTasks = bigDatalogContext.sparkContext.getConf.getBoolean("spark.datalog.recursion.iterateinfixedpointresulttask", false)
+  // enabled for high-iteration programs because it will clear the lineage,
+  // otherwise a stack overflow could happen.
+  val doMemoryCheckpoint = bigDatalogContext.sparkContext.getConf.
+                                       getBoolean("spark.datalog.recursion.memorycheckpoint", true)
+  val iterateInFixedPointResultTasks = bigDatalogContext.sparkContext.getConf.
+                         getBoolean("spark.datalog.recursion.iterateinfixedpointresulttask", false)
 
   def doSingleJobPSNWithSetRDD(): RDD[InternalRow]
 
@@ -85,11 +91,11 @@ abstract class RecursionBase(name : String,
     !iter.isEmpty
   }
 
-  def persist(rdd: RDD[_]) = {
+  def persist(rdd: RDD[_]): Unit = {
     cachedRDDs.persist(rdd, doMemoryCheckpoint)
   }
 
-  def cleanUpCachedRelations() = {
+  def cleanUpCachedRelations(): Unit = {
     cachedRDDs.cleanUpIteration()
     cachedRDDs.clear()
   }
@@ -104,17 +110,20 @@ abstract class RecursionBase(name : String,
 
   protected def getCachedRDDId(rdd: RDD[_]): Int = {
     rdd match {
-      case rdd : SetRDD if (rdd.partitionsRDD.getStorageLevel != StorageLevel.NONE) => rdd.partitionsRDD.id
+      case rdd : SetRDD if (rdd.partitionsRDD.getStorageLevel != StorageLevel.NONE) =>
+                                                                               rdd.partitionsRDD.id
       case other => if (rdd.getStorageLevel != StorageLevel.NONE) rdd.id else -1
     }
   }
 
   def reportConfiguration(): Unit = {
     logInfo("Recursion operator configuration settings:")
-    if (doMemoryCheckpoint)
+    if (doMemoryCheckpoint) {
       logInfo("  Using memory checkpointing with " + bigDatalogContext.getConf.defaultStorageLevel)
+    }
 
-    if (iterateInFixedPointResultTasks)
+    if (iterateInFixedPointResultTasks) {
       logInfo("  Eligible (decomposed) plans will iterate within FixedPointResultTasks")
+    }
   }
 }

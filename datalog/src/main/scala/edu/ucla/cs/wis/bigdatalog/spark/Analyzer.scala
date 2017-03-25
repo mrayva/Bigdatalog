@@ -20,20 +20,33 @@ package edu.ucla.cs.wis.bigdatalog.spark
 import edu.ucla.cs.wis.bigdatalog.spark.logical.MonotonicAggregate
 import org.apache.spark.sql.catalyst.CatalystConf
 import org.apache.spark.sql.catalyst.analysis._
-import org.apache.spark.sql.catalyst.expressions.{Alias, Cast, CreateStruct, CreateStructUnsafe, Expression, Generator, NamedExpression, SortOrder}
+import org.apache.spark.sql.catalyst.expressions.{
+  Alias,
+  Cast,
+  CreateStruct,
+  CreateStructUnsafe,
+  Expression,
+  Generator,
+  NamedExpression,
+  SortOrder
+}
 import org.apache.spark.sql.catalyst.plans.logical.{Pivot, _}
 import org.apache.spark.sql.catalyst.rules.Rule
 
 class Analyzer(catalog: Catalog,
                registry: FunctionRegistry,
                conf: CatalystConf,
-               maxIterations: Int = 100) extends org.apache.spark.sql.catalyst.analysis.Analyzer(catalog, registry, conf, maxIterations) {
+               maxIterations: Int = 100)
+    extends org.apache.spark.sql.catalyst.analysis.Analyzer(catalog,
+                                                            registry,
+                                                            conf,
+                                                            maxIterations) {
 
   override lazy val batches: Seq[Batch] = Seq(
-    Batch("Substitution", fixedPoint,
-      CTESubstitution,
-      WindowsSubstitution),
-    Batch("Resolution", fixedPoint,
+    Batch("Substitution", fixedPoint, CTESubstitution, WindowsSubstitution),
+    Batch(
+      "Resolution",
+      fixedPoint,
       ResolveRelations ::
         ResolveReferences ::
         ResolveGroupingAnalytics ::
@@ -48,50 +61,61 @@ class Analyzer(catalog: Catalog,
         ResolveAggregateFunctions ::
         DistinctAggregationRewriter(conf) ::
         HiveTypeCoercion.typeCoercionRules ++
-          extendedResolutionRules : _*),
-    Batch("Nondeterministic", Once,
-      PullOutNondeterministic,
-      ComputeCurrentTime),
-    Batch("UDF", Once,
-      HandleNullInputsForUDF),
-    Batch("Cleanup", fixedPoint,
-      CleanupAliases2)
+        extendedResolutionRules: _*
+    ),
+    Batch("Nondeterministic",
+          Once,
+          PullOutNondeterministic,
+          ComputeCurrentTime),
+    Batch("UDF", Once, HandleNullInputsForUDF),
+    Batch("Cleanup", fixedPoint, CleanupAliases2)
   )
 
   object ResolveAliases2 extends Rule[LogicalPlan] {
     private def assignAliases(exprs: Seq[NamedExpression]) = {
-      exprs.zipWithIndex.map {
-        case (expr, i) =>
-          expr transformUp {
-            case u @ UnresolvedAlias(child) => child match {
-              case ne: NamedExpression => ne
-              case e if !e.resolved => u
-              case g: Generator => MultiAlias(g, Nil)
-              case c @ Cast(ne: NamedExpression, _) => Alias(c, ne.name)()
-              case other => Alias(other, s"_c$i")()
+      exprs.zipWithIndex
+        .map {
+          case (expr, i) =>
+            expr transformUp {
+              case u @ UnresolvedAlias(child) =>
+                child match {
+                  case ne: NamedExpression => ne
+                  case e if !e.resolved => u
+                  case g: Generator => MultiAlias(g, Nil)
+                  case c @ Cast(ne: NamedExpression, _) => Alias(c, ne.name)()
+                  case other => Alias(other, s"_c$i")()
+                }
             }
-          }
-      }.asInstanceOf[Seq[NamedExpression]]
+        }
+        .asInstanceOf[Seq[NamedExpression]]
     }
 
     private def hasUnresolvedAlias(exprs: Seq[NamedExpression]) =
       exprs.exists(_.find(_.isInstanceOf[UnresolvedAlias]).isDefined)
 
     def apply(plan: LogicalPlan): LogicalPlan = plan resolveOperators {
-      case Aggregate(groups, aggs, child) if child.resolved && hasUnresolvedAlias(aggs) =>
+      case Aggregate(groups, aggs, child)
+          if child.resolved && hasUnresolvedAlias(aggs) =>
         Aggregate(groups, assignAliases(aggs), child)
 
-      case MonotonicAggregate(groups, aggs, child, partitioning) if child.resolved && hasUnresolvedAlias(aggs) =>
+      case MonotonicAggregate(groups, aggs, child, partitioning)
+          if child.resolved && hasUnresolvedAlias(aggs) =>
         MonotonicAggregate(groups, assignAliases(aggs), child, partitioning)
 
-      case g: GroupingAnalytics if g.child.resolved && hasUnresolvedAlias(g.aggregations) =>
+      case g: GroupingAnalytics
+          if g.child.resolved && hasUnresolvedAlias(g.aggregations) =>
         g.withNewAggs(assignAliases(g.aggregations))
 
       case Pivot(groupByExprs, pivotColumn, pivotValues, aggregates, child)
-        if child.resolved && hasUnresolvedAlias(groupByExprs) =>
-        Pivot(assignAliases(groupByExprs), pivotColumn, pivotValues, aggregates, child)
+          if child.resolved && hasUnresolvedAlias(groupByExprs) =>
+        Pivot(assignAliases(groupByExprs),
+              pivotColumn,
+              pivotValues,
+              aggregates,
+              child)
 
-      case Project(projectList, child) if child.resolved && hasUnresolvedAlias(projectList) =>
+      case Project(projectList, child)
+          if child.resolved && hasUnresolvedAlias(projectList) =>
         Project(assignAliases(projectList), child)
     }
   }
@@ -116,29 +140,45 @@ object CleanupAliases2 extends Rule[LogicalPlan] {
 
   def trimNonTopLevelAliases(e: Expression): Expression = e match {
     case a: Alias =>
-      Alias(trimAliases(a.child), a.name)(a.exprId, a.qualifiers, a.explicitMetadata)
+      Alias(trimAliases(a.child), a.name)(a.exprId,
+                                          a.qualifiers,
+                                          a.explicitMetadata)
     case other => trimAliases(other)
   }
 
   override def apply(plan: LogicalPlan): LogicalPlan = plan resolveOperators {
     case Project(projectList, child) =>
       val cleanedProjectList =
-        projectList.map(trimNonTopLevelAliases(_).asInstanceOf[NamedExpression])
+        projectList.map(
+          trimNonTopLevelAliases(_).asInstanceOf[NamedExpression])
       Project(cleanedProjectList, child)
 
     case Aggregate(grouping, aggs, child) =>
-      val cleanedAggs = aggs.map(trimNonTopLevelAliases(_).asInstanceOf[NamedExpression])
+      val cleanedAggs =
+        aggs.map(trimNonTopLevelAliases(_).asInstanceOf[NamedExpression])
       Aggregate(grouping.map(trimAliases), cleanedAggs, child)
 
     case MonotonicAggregate(grouping, aggs, child, partitioning) =>
-      val cleanedAggs = aggs.map(trimNonTopLevelAliases(_).asInstanceOf[NamedExpression])
-      MonotonicAggregate(grouping.map(trimAliases), cleanedAggs, child, partitioning)
+      val cleanedAggs =
+        aggs.map(trimNonTopLevelAliases(_).asInstanceOf[NamedExpression])
+      MonotonicAggregate(grouping.map(trimAliases),
+                         cleanedAggs,
+                         child,
+                         partitioning)
 
-    case w @ Window(projectList, windowExprs, partitionSpec, orderSpec, child) =>
+    case w @ Window(projectList,
+                    windowExprs,
+                    partitionSpec,
+                    orderSpec,
+                    child) =>
       val cleanedWindowExprs =
-        windowExprs.map(e => trimNonTopLevelAliases(e).asInstanceOf[NamedExpression])
-      Window(projectList, cleanedWindowExprs, partitionSpec.map(trimAliases),
-        orderSpec.map(trimAliases(_).asInstanceOf[SortOrder]), child)
+        windowExprs.map(e =>
+          trimNonTopLevelAliases(e).asInstanceOf[NamedExpression])
+      Window(projectList,
+             cleanedWindowExprs,
+             partitionSpec.map(trimAliases),
+             orderSpec.map(trimAliases(_).asInstanceOf[SortOrder]),
+             child)
 
     case other =>
       var stop = false

@@ -18,12 +18,22 @@
 package edu.ucla.cs.wis.bigdatalog.spark.execution.aggregates
 
 import org.apache.spark.sql.catalyst.analysis.TypeCheckResult
-import org.apache.spark.sql.catalyst.expressions.{AttributeReference, AttributeSet, Expression, Greatest, Least, Literal, Unevaluable}
+import org.apache.spark.sql.catalyst.expressions.{
+  AttributeReference,
+  AttributeSet,
+  Expression,
+  Greatest,
+  Least,
+  Literal,
+  Unevaluable
+}
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.catalyst.util.TypeUtils
 import org.apache.spark.sql.types.{AbstractDataType, AnyDataType, DataType}
 
-abstract class MonotonicAggregateFunction extends DeclarativeAggregate with Serializable {}
+abstract class MonotonicAggregateFunction
+    extends DeclarativeAggregate
+    with Serializable {}
 
 case class MMax(child: Expression) extends MonotonicAggregateFunction {
 
@@ -97,10 +107,11 @@ case class MMin(child: Expression) extends MonotonicAggregateFunction {
   override lazy val evaluateExpression: AttributeReference = mmin
 }
 
-case class MonotonicAggregateExpression(aggregateFunction: MonotonicAggregateFunction,
-                                        mode: AggregateMode,
-                                        isDistinct: Boolean)
-  extends Expression
+case class MonotonicAggregateExpression(
+    aggregateFunction: MonotonicAggregateFunction,
+    mode: AggregateMode,
+    isDistinct: Boolean)
+    extends Expression
     with Unevaluable {
 
   override def children: Seq[Expression] = aggregateFunction :: Nil
@@ -119,5 +130,6 @@ case class MonotonicAggregateExpression(aggregateFunction: MonotonicAggregateFun
 
   override def prettyString: String = aggregateFunction.prettyString
 
-  override def toString: String = s"(${aggregateFunction},mode=$mode,isDistinct=$isDistinct)"
+  override def toString: String =
+    s"(${aggregateFunction},mode=$mode,isDistinct=$isDistinct)"
 }

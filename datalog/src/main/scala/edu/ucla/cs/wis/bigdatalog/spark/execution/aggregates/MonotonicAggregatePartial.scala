@@ -22,27 +22,44 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SQLContext
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.errors._
-import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, AggregateMode}
-import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, NamedExpression, UnsafeRow}
-import org.apache.spark.sql.catalyst.plans.physical.{Distribution, UnspecifiedDistribution}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{
+  AggregateExpression,
+  AggregateMode
+}
+import org.apache.spark.sql.catalyst.expressions.{
+  Attribute,
+  Expression,
+  NamedExpression,
+  UnsafeRow
+}
+import org.apache.spark.sql.catalyst.plans.physical.{
+  Distribution,
+  UnspecifiedDistribution
+}
 import org.apache.spark.sql.execution.aggregate.TungstenAggregationIterator
 import org.apache.spark.sql.execution.metric.SQLMetrics
-import org.apache.spark.sql.execution.{SparkPlan, UnaryNode, UnsafeFixedWidthAggregationMap}
+import org.apache.spark.sql.execution.{
+  SparkPlan,
+  UnaryNode,
+  UnsafeFixedWidthAggregationMap
+}
 import org.apache.spark.sql.types.StructType
 
-case class MonotonicAggregatePartial(requiredChildDistributionExpressions: Option[Seq[Expression]],
-                                     groupingExpressions: Seq[NamedExpression],
-                                     nonCompleteAggregateExpressions: Seq[AggregateExpression],
-                                     nonCompleteAggregateAttributes: Seq[Attribute],
-                                     completeAggregateExpressions: Seq[AggregateExpression],
-                                     completeAggregateAttributes: Seq[Attribute],
-                                     initialInputBufferOffset: Int,
-                                     resultExpressions: Seq[NamedExpression],
-                                     child: SparkPlan)
-  extends UnaryNode {
+case class MonotonicAggregatePartial(
+    requiredChildDistributionExpressions: Option[Seq[Expression]],
+    groupingExpressions: Seq[NamedExpression],
+    nonCompleteAggregateExpressions: Seq[AggregateExpression],
+    nonCompleteAggregateAttributes: Seq[Attribute],
+    completeAggregateExpressions: Seq[AggregateExpression],
+    completeAggregateAttributes: Seq[Attribute],
+    initialInputBufferOffset: Int,
+    resultExpressions: Seq[NamedExpression],
+    child: SparkPlan)
+    extends UnaryNode {
 
   @transient
-  final val bigDatalogContext = SQLContext.getActive().getOrElse(null).asInstanceOf[BigDatalogContext]
+  final val bigDatalogContext =
+    SQLContext.getActive().getOrElse(null).asInstanceOf[BigDatalogContext]
 
   var cachingFun: (RDD[_] => Unit) = null
 
@@ -51,14 +68,20 @@ case class MonotonicAggregatePartial(requiredChildDistributionExpressions: Optio
       .flatMap(_.aggregateFunction.aggBufferAttributes)
   }
 
-  require(MonotonicAggregatePartial.supportsAggregate(groupingExpressions, aggregateBufferAttributes))
+  require(
+    MonotonicAggregatePartial.supportsAggregate(groupingExpressions,
+                                                aggregateBufferAttributes))
 
   override lazy val metrics = Map(
-    "numInputRows" -> SQLMetrics.createLongMetric(sparkContext, "number of input rows"),
-    "numOutputRows" -> SQLMetrics.createLongMetric(sparkContext, "number of output rows"),
+    "numInputRows" -> SQLMetrics.createLongMetric(sparkContext,
+                                                  "number of input rows"),
+    "numOutputRows" -> SQLMetrics.createLongMetric(sparkContext,
+                                                   "number of output rows"),
     "dataSize" -> SQLMetrics.createSizeMetric(sparkContext, "data size"),
     "spillSize" -> SQLMetrics.createSizeMetric(sparkContext, "spill size"),
-    "numUpdates" -> SQLMetrics.createLongMetric(sparkContext, "number of updates"))
+    "numUpdates" -> SQLMetrics.createLongMetric(sparkContext,
+                                                "number of updates")
+  )
 
   override def outputsUnsafeRows: Boolean = true
 
@@ -79,54 +102,58 @@ case class MonotonicAggregatePartial(requiredChildDistributionExpressions: Optio
 
   // This is for testing. We force TungstenAggregationIterator to fall back to sort-based
   // aggregation once it has processed a given number of input rows.
-  //private
+  // private
   val testFallbackStartsAt: Option[Int] = {
-    sqlContext.getConf("spark.sql.TungstenAggregate.testFallbackStartsAt", null) match {
+    sqlContext.getConf("spark.sql.TungstenAggregate.testFallbackStartsAt",
+                       null) match {
       case null | "" => None
       case fallbackStartsAt => Some(fallbackStartsAt.toInt)
     }
   }
 
-  protected override def doExecute(): RDD[InternalRow] = attachTree(this, "execute") {
-    val numInputRows = longMetric("numInputRows")
-    val numOutputRows = longMetric("numOutputRows")
-    val dataSize = longMetric("dataSize")
-    val spillSize = longMetric("spillSize")
+  protected override def doExecute(): RDD[InternalRow] =
+    attachTree(this, "execute") {
+      val numInputRows = longMetric("numInputRows")
+      val numOutputRows = longMetric("numOutputRows")
+      val dataSize = longMetric("dataSize")
+      val spillSize = longMetric("spillSize")
 
-    child.execute().mapPartitions { iter =>
-      val hasInput = iter.hasNext
-      if (!hasInput && groupingExpressions.nonEmpty) {
-        // This is a grouped aggregate and the input iterator is empty,
-        // so return an empty iterator.
-        Iterator.empty
-      } else {
-        val aggregationIterator = new TungstenAggregationIterator(
-          groupingExpressions,
-          nonCompleteAggregateExpressions,
-          nonCompleteAggregateAttributes,
-          completeAggregateExpressions,
-          completeAggregateAttributes,
-          initialInputBufferOffset,
-          resultExpressions,
-          newMutableProjection,
-          child.output,
-          iter,
-          testFallbackStartsAt,
-          numInputRows,
-          numOutputRows,
-          dataSize,
-          spillSize)
-
-        if (!hasInput && groupingExpressions.isEmpty) {
-          val numOutputRows = longMetric("numOutputRows")
-          numOutputRows += 1
-          Iterator.single[UnsafeRow](aggregationIterator.outputForEmptyGroupingKeyWithoutInput())
+      child.execute().mapPartitions { iter =>
+        val hasInput = iter.hasNext
+        if (!hasInput && groupingExpressions.nonEmpty) {
+          // This is a grouped aggregate and the input iterator is empty,
+          // so return an empty iterator.
+          Iterator.empty
         } else {
-          aggregationIterator
+          val aggregationIterator = new TungstenAggregationIterator(
+            groupingExpressions,
+            nonCompleteAggregateExpressions,
+            nonCompleteAggregateAttributes,
+            completeAggregateExpressions,
+            completeAggregateAttributes,
+            initialInputBufferOffset,
+            resultExpressions,
+            newMutableProjection,
+            child.output,
+            iter,
+            testFallbackStartsAt,
+            numInputRows,
+            numOutputRows,
+            dataSize,
+            spillSize
+          )
+
+          if (!hasInput && groupingExpressions.isEmpty) {
+            val numOutputRows = longMetric("numOutputRows")
+            numOutputRows += 1
+            Iterator.single[UnsafeRow](
+              aggregationIterator.outputForEmptyGroupingKeyWithoutInput())
+          } else {
+            aggregationIterator
+          }
         }
       }
     }
-  }
 
   override def simpleString: String = {
     val allAggregateExpressions = nonCompleteAggregateExpressions ++ completeAggregateExpressions
@@ -136,7 +163,8 @@ case class MonotonicAggregatePartial(requiredChildDistributionExpressions: Optio
         val keyString = groupingExpressions.mkString("[", ",", "]")
         val functionString = allAggregateExpressions.mkString("[", ",", "]")
         val outputString = output.mkString("[", ",", "]")
-        s"MonotonicAggregatePartial(key=$keyString, functions=$functionString, output=$outputString)"
+        s"MonotonicAggregatePartial(key=$keyString, functions=$functionString, " +
+          s"output=$outputString)"
       case Some(fallbackStartsAt) =>
         s"MonotonicAggregateWithControlledFallback $groupingExpressions " +
           s"$allAggregateExpressions $resultExpressions fallbackStartsAt=$fallbackStartsAt"
@@ -147,7 +175,9 @@ case class MonotonicAggregatePartial(requiredChildDistributionExpressions: Optio
 object MonotonicAggregatePartial {
   def supportsAggregate(groupingExpressions: Seq[Expression],
                         aggregateBufferAttributes: Seq[Attribute]): Boolean = {
-    val aggregationBufferSchema = StructType.fromAttributes(aggregateBufferAttributes)
-    UnsafeFixedWidthAggregationMap.supportsAggregationBufferSchema(aggregationBufferSchema)
+    val aggregationBufferSchema =
+      StructType.fromAttributes(aggregateBufferAttributes)
+    UnsafeFixedWidthAggregationMap.supportsAggregationBufferSchema(
+      aggregationBufferSchema)
   }
 }

@@ -30,12 +30,13 @@ class BigDatalogProgram(var bigDatalogContext: BigDatalogContext,
   def toDF(): DataFrame = {
     new DataFrame(bigDatalogContext, plan)
   }
-  
+
   def count(): Long = {
     toDF().count()
   }
 
-  // use this method to produce an rdd containing the results for the program (i.e., it evaluates the program)
+  // use this method to produce an rdd containing the results for the program
+  // (i.e., it evaluates the program)
   def execute(): RDD[Row] = {
     toDF().rdd
   }

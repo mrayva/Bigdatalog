@@ -23,7 +23,10 @@ import java.sql.Date
 import edu.ucla.cs.wis.bigdatalog.`type`.DataType
 import edu.ucla.cs.wis.bigdatalog.database.`type`._
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.catalyst.expressions.{GenericInternalRow, GenericMutableRow}
+import org.apache.spark.sql.catalyst.expressions.{
+  GenericInternalRow,
+  GenericMutableRow
+}
 import org.apache.spark.sql.catalyst.util.DateTimeUtils
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.catalyst.InternalRow
@@ -31,36 +34,60 @@ import org.apache.spark.unsafe.types.UTF8String
 
 object Utilities {
 
-  def getDbTypeBaseValue(t : DbTypeBase) : Any = t match {
-    case i : DbInteger => i.getValue
-    case l : DbLong => l.getValue
-    case s : DbString => s.getValue
-    case d : DbDouble => d.getValue
-    case f : DbFloat => f.getValue
-    case si : DbShort => si.getValue
-    case b : DbByte => b.getValue
-    case ll : DbLongLong => new BigInteger(ll.getBytes)
-    case llll : DbLongLongLongLong => new BigInteger(llll.getBytes())
-    case dt : DbDateTime => new java.sql.Date(dt.getValue.getTime)
+  def getDbTypeBaseValue(t: DbTypeBase): Any = t match {
+    case i: DbInteger => i.getValue
+    case l: DbLong => l.getValue
+    case s: DbString => s.getValue
+    case d: DbDouble => d.getValue
+    case f: DbFloat => f.getValue
+    case si: DbShort => si.getValue
+    case b: DbByte => b.getValue
+    case ll: DbLongLong => new BigInteger(ll.getBytes)
+    case llll: DbLongLongLongLong => new BigInteger(llll.getBytes())
+    case dt: DbDateTime => new java.sql.Date(dt.getValue.getTime)
   }
 
-  def createDbTypeBaseConverter(dataType: edu.ucla.cs.wis.bigdatalog.`type`.DataType): DbTypeBase => Any = {
+  def createDbTypeBaseConverter(
+      dataType: edu.ucla.cs.wis.bigdatalog.`type`.DataType)
+    : DbTypeBase => Any = {
     dataType match {
-      case DataType.INT => (item: DbTypeBase) => item.asInstanceOf[DbInteger].getValue
-      case DataType.LONG => (item: DbTypeBase) => item.asInstanceOf[DbLong].getValue
-      case DataType.STRING => (item: DbTypeBase) => UTF8String.fromString(item.asInstanceOf[DbString].getValue)
-      case DataType.DOUBLE => (item: DbTypeBase) => item.asInstanceOf[DbDouble].getValue
-      case DataType.FLOAT => (item: DbTypeBase) => item.asInstanceOf[DbFloat].getValue
-      case DataType.SHORT => (item: DbTypeBase) => item.asInstanceOf[DbShort].getValue
-      case DataType.BYTE=> (item: DbTypeBase) => item.asInstanceOf[DbByte].getValue
-      case DataType.LONGLONG => (item: DbTypeBase) => new BigInteger(item.asInstanceOf[DbLongLong].getBytes)
-      case DataType.LONGLONGLONGLONG => (item: DbTypeBase) => new BigInteger(item.asInstanceOf[DbLongLongLongLong].getBytes())
-      case DataType.DATETIME => (item: DbTypeBase) => new java.sql.Date(item.asInstanceOf[DbDateTime].getValue.getTime)
+      case DataType.INT =>
+        (item: DbTypeBase) =>
+          item.asInstanceOf[DbInteger].getValue
+      case DataType.LONG =>
+        (item: DbTypeBase) =>
+          item.asInstanceOf[DbLong].getValue
+      case DataType.STRING =>
+        (item: DbTypeBase) =>
+          UTF8String.fromString(item.asInstanceOf[DbString].getValue)
+      case DataType.DOUBLE =>
+        (item: DbTypeBase) =>
+          item.asInstanceOf[DbDouble].getValue
+      case DataType.FLOAT =>
+        (item: DbTypeBase) =>
+          item.asInstanceOf[DbFloat].getValue
+      case DataType.SHORT =>
+        (item: DbTypeBase) =>
+          item.asInstanceOf[DbShort].getValue
+      case DataType.BYTE =>
+        (item: DbTypeBase) =>
+          item.asInstanceOf[DbByte].getValue
+      case DataType.LONGLONG =>
+        (item: DbTypeBase) =>
+          new BigInteger(item.asInstanceOf[DbLongLong].getBytes)
+      case DataType.LONGLONGLONGLONG =>
+        (item: DbTypeBase) =>
+          new BigInteger(item.asInstanceOf[DbLongLongLongLong].getBytes())
+      case DataType.DATETIME =>
+        (item: DbTypeBase) =>
+          new java.sql.Date(item.asInstanceOf[DbDateTime].getValue.getTime)
       case _ => throw new Exception("Unsupported datatype being converted!")
     }
   }
 
-  def getSparkDataType(dealDataType: edu.ucla.cs.wis.bigdatalog.`type`.DataType): org.apache.spark.sql.types.DataType = {
+  def getSparkDataType(
+      dealDataType: edu.ucla.cs.wis.bigdatalog.`type`.DataType)
+    : org.apache.spark.sql.types.DataType = {
     dealDataType match {
       case edu.ucla.cs.wis.bigdatalog.`type`.DataType.BYTE =>
         return org.apache.spark.sql.types.ByteType
@@ -82,7 +109,8 @@ object Utilities {
     }
   }
 
-  // returns a RDD[InternalRow] that will load, parse and convert (into InternalRow) the given filePath
+  // returns a RDD[InternalRow] that will load,
+  // parse and convert (into InternalRow) the given filePath
   def loadRowRDDFromFile(bigDatalogContext: BigDatalogContext,
                          filePath: String,
                          schema: StructType,
@@ -92,9 +120,11 @@ object Utilities {
 
     val delimiter = if (filePath.endsWith(".csv")) "," else "\t"
     val arity = schema.length
-    val fs: Array[(String => Any)] = schema.map(s => createStringColumnConverter(s.dataType)).toArray
+    val fs: Array[(String => Any)] =
+      schema.map(s => createStringColumnConverter(s.dataType)).toArray
 
-    bigDatalogContext.sparkContext.textFile(filePath, numPartitions)
+    bigDatalogContext.sparkContext
+      .textFile(filePath, numPartitions)
       .coalesce(numPartitions)
       .filter(line => !line.trim.isEmpty && (line(0) != '%'))
       .mapPartitions { iter =>
@@ -110,14 +140,16 @@ object Utilities {
             i += 1
           }
           row
-        })}
+        })
+      }
   }
 
   def loadRowRDDFromDataset(bigDatalogContext: BigDatalogContext,
-                 data: Seq[String],
-                 schema: StructType,
-                 numPartitions: Int): RDD[InternalRow] = {
-    val fs: Array[(String => Any)] = schema.map(s => createStringColumnConverter(s.dataType)).toArray
+                            data: Seq[String],
+                            schema: StructType,
+                            numPartitions: Int): RDD[InternalRow] = {
+    val fs: Array[(String => Any)] =
+      schema.map(s => createStringColumnConverter(s.dataType)).toArray
 
     val arity = schema.length
     val rows = data.map(line => {
@@ -130,22 +162,24 @@ object Utilities {
         i += 1
       }
       new GenericInternalRow(ar)
-      //ar(i) = scalaToCatalystTypeConverters(i)(stringToScalaTypeConverter(i).apply(splitLine(i)))
+      // ar(i) = scalaToCatalystTypeConverters(i)(stringToScalaTypeConverter(i).apply(splitLine(i)))
     })
 
     bigDatalogContext.sparkContext.parallelize(rows, numPartitions)
   }
 
-  def createStringColumnConverter(dataType: org.apache.spark.sql.types.DataType): (String => Any) = {
+  def createStringColumnConverter(
+      dataType: org.apache.spark.sql.types.DataType): (String => Any) = {
     dataType match {
-      case IntegerType => ((item: String) => item.toInt)//(item)
+      case IntegerType => ((item: String) => item.toInt) // (item)
       case LongType => ((item: String) => item.toLong)
       case StringType => ((item: String) => UTF8String.fromString(item))
       case DoubleType => ((item: String) => item.toDouble)
       case FloatType => ((item: String) => item.toFloat)
       case ShortType => ((item: String) => item.toShort)
       case ByteType => ((item: String) => item.toByte)
-      case DateType => ((item: String) => DateTimeUtils.fromJavaDate(Date.valueOf(item)))
+      case DateType =>
+        ((item: String) => DateTimeUtils.fromJavaDate(Date.valueOf(item)))
       case _ => throw new Exception("Unsupported datatype being converted!")
     }
   }
@@ -154,7 +188,7 @@ object Utilities {
     try {
       value.toInt
     } catch {
-      case ex:Exception => value.toDouble.toInt
+      case ex: Exception => value.toDouble.toInt
     }
   }
 }

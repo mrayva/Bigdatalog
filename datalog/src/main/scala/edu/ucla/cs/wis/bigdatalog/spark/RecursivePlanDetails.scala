@@ -26,7 +26,7 @@ class RecursivePlanDetails extends Serializable {
   val recursiveRelations = new HashMap[String, LogicalPlan]
   val aggregateRelations = new HashMap[String, LogicalPlan]
 
-  def addBaseRelation(name: String, obj: LogicalPlan) = {
+  def addBaseRelation(name: String, obj: LogicalPlan) : Option[LogicalPlan] = {
     baseRelationsByName.put(name, obj)
   }
 

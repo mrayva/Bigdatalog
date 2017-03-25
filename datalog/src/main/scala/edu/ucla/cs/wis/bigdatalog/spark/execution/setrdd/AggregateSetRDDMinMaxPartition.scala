@@ -18,47 +18,70 @@
 package edu.ucla.cs.wis.bigdatalog.spark.execution.setrdd
 
 import edu.ucla.cs.wis.bigdatalog.spark.SchemaInfo
-import edu.ucla.cs.wis.bigdatalog.spark.execution.aggregates.{AggregateSetRDDPartition, KeyValueToInternalRowIterator, MonotonicAggregate}
+import edu.ucla.cs.wis.bigdatalog.spark.execution.aggregates.{
+  AggregateSetRDDPartition,
+  KeyValueToInternalRowIterator,
+  MonotonicAggregate
+}
 import edu.ucla.cs.wis.bigdatalog.spark.storage.map.UnsafeFixedWidthMonotonicAggregationMap
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.UnsafeRow
 
-class AggregateSetRDDMinMaxPartition(aggregateStore: UnsafeFixedWidthMonotonicAggregationMap,
-                                     schemaInfo: SchemaInfo,
-                                     monotonicAggregate: MonotonicAggregate)
-  extends AggregateSetRDDPartition(aggregateStore, schemaInfo, monotonicAggregate) with Serializable {
+class AggregateSetRDDMinMaxPartition(
+    aggregateStore: UnsafeFixedWidthMonotonicAggregationMap,
+    schemaInfo: SchemaInfo,
+    monotonicAggregate: MonotonicAggregate)
+    extends AggregateSetRDDPartition(aggregateStore,
+                                     schemaInfo,
+                                     monotonicAggregate)
+    with Serializable {
 
   def size: Int = aggregateStore.numElements()
 
   def iterator: Iterator[InternalRow] = {
-      KeyValueToInternalRowIterator(aggregateStore.iterator(), monotonicAggregate.generateResultProjection())
+    KeyValueToInternalRowIterator(
+      aggregateStore.iterator(),
+      monotonicAggregate.generateResultProjection())
   }
 
   // update() merges the results produced during the iteration into this partition
   // during update():
-  //  - the underlying aggregateSetRDDPartition storage is updated.
-  //  - a 2nd aggregateSetRDDPartition is produced indicating the rows that changed during the merge
+  // - the underlying aggregateSetRDDPartition storage is updated.
+  // - a 2nd aggregateSetRDDPartition is produced indicating the rows that changed during the merge
   // This is similar to regular aggregation, just that we-use the same hashmap each iteration
   def update(iter: Iterator[InternalRow],
-             monotonicAggregate: MonotonicAggregate): (AggregateSetRDDPartition, SetRDDPartition[InternalRow]) = {//Iterator[InternalRow]) = {
+             monotonicAggregate: MonotonicAggregate)
+    : (AggregateSetRDDPartition, SetRDDPartition[InternalRow]) = {
+    // Iterator[InternalRow]) = {
 
     val start = System.currentTimeMillis()
     val before = aggregateStore.numElements()
     // this is going to perform the aggregation and return an iterator over the output
-    val maIter = monotonicAggregate.getAggregationIterator(iter, aggregateStore)
+    val maIter =
+      monotonicAggregate.getAggregationIterator(iter, aggregateStore)
 
-    logInfo("Update deltaSPrime set size before %s after %s, delta set size %s took %s ms"
-      .format(before, aggregateStore.numElements(), maIter.deltaSet.size, System.currentTimeMillis() - start))
+    logInfo(
+      "Update deltaSPrime set size before %s after %s, delta set size %s took %s ms"
+        .format(before,
+                aggregateStore.numElements(),
+                maIter.deltaSet.size,
+                System.currentTimeMillis() - start))
 
-    val hashMapIter = new JavaHashMapIterator(maIter.deltaSet, monotonicAggregate.generateResultProjection())
+    val hashMapIter = new JavaHashMapIterator(
+      maIter.deltaSet,
+      monotonicAggregate.generateResultProjection())
 
-    (new AggregateSetRDDMinMaxPartition(aggregateStore, schemaInfo, monotonicAggregate),
-      SetRDDHashSetPartition(hashMapIter, schemaInfo))
+    (new AggregateSetRDDMinMaxPartition(aggregateStore,
+                                        schemaInfo,
+                                        monotonicAggregate),
+     SetRDDHashSetPartition(hashMapIter, schemaInfo))
   }
 }
 
-class JavaHashMapIterator(hashMap: java.util.HashMap[UnsafeRow, UnsafeRow],
-                          resultProjection: (UnsafeRow, UnsafeRow) => UnsafeRow) extends Iterator[InternalRow] {
+class JavaHashMapIterator(
+    hashMap: java.util.HashMap[UnsafeRow, UnsafeRow],
+    resultProjection: (UnsafeRow, UnsafeRow) => UnsafeRow)
+    extends Iterator[InternalRow] {
   val iterator = hashMap.entrySet().iterator()
 
   override def hasNext: Boolean = iterator.hasNext

@@ -18,7 +18,11 @@
 package edu.ucla.cs.wis.bigdatalog.spark.execution.aggregates
 
 import edu.ucla.cs.wis.bigdatalog.spark.SchemaInfo
-import edu.ucla.cs.wis.bigdatalog.spark.execution.setrdd.{AggregateSetRDDMinMaxPartition, SetRDD, SetRDDPartition}
+import edu.ucla.cs.wis.bigdatalog.spark.execution.setrdd.{
+  AggregateSetRDDMinMaxPartition,
+  SetRDD,
+  SetRDDPartition
+}
 import org.apache.spark._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -27,8 +31,10 @@ import org.apache.spark.storage.StorageLevel
 
 import scala.reflect.ClassTag
 
-class AggregateSetRDD(val partitionsRDD: RDD[AggregateSetRDDPartition], monotonicAggregate: MonotonicAggregate)
-  extends RDD[InternalRow](partitionsRDD.context, List(new OneToOneDependency(partitionsRDD))) {
+class AggregateSetRDD(val partitionsRDD: RDD[AggregateSetRDDPartition],
+                      monotonicAggregate: MonotonicAggregate)
+    extends RDD[InternalRow](partitionsRDD.context,
+                             List(new OneToOneDependency(partitionsRDD))) {
 
   protected def self: AggregateSetRDD = this
 
@@ -39,9 +45,11 @@ class AggregateSetRDD(val partitionsRDD: RDD[AggregateSetRDDPartition], monotoni
   override protected def getPreferredLocations(s: Partition): Seq[String] =
     partitionsRDD.preferredLocations(s)
 
-  override protected def getPartitions: Array[Partition] = partitionsRDD.partitions
+  override protected def getPartitions: Array[Partition] =
+    partitionsRDD.partitions
 
-  override def persist(newLevel: StorageLevel = StorageLevel.MEMORY_ONLY): this.type = {
+  override def persist(
+      newLevel: StorageLevel = StorageLevel.MEMORY_ONLY): this.type = {
     partitionsRDD.persist(newLevel)
     this
   }
@@ -67,24 +75,28 @@ class AggregateSetRDD(val partitionsRDD: RDD[AggregateSetRDDPartition], monotoni
     partitionsRDD.getCheckpointFile
   }
 
-  override def localCheckpoint() = {
+  override def localCheckpoint(): this.type = {
     partitionsRDD.localCheckpoint()
     this
   }
 
-  override def memoryCheckpoint() = {
+  override def memoryCheckpoint(): Unit = {
     partitionsRDD.memoryCheckpoint()
     this
   }
 
-  override def mapPartitions[U: ClassTag](f: Iterator[InternalRow] => Iterator[U],
-                                          preservesPartitioning: Boolean = false): RDD[U] = {
-    partitionsRDD.mapPartitions(iter => f(iter.next().iterator), preservesPartitioning)
+  override def mapPartitions[U: ClassTag](
+      f: Iterator[InternalRow] => Iterator[U],
+      preservesPartitioning: Boolean = false): RDD[U] = {
+    partitionsRDD.mapPartitions(iter => f(iter.next().iterator),
+                                preservesPartitioning)
   }
 
-  override def mapPartitionsInternal[U: ClassTag](f: Iterator[InternalRow] => Iterator[U],
-                                          preservesPartitioning: Boolean = false): RDD[U] = {
-    partitionsRDD.mapPartitionsInternal(iter => f(iter.next().iterator), preservesPartitioning)
+  override def mapPartitionsInternal[U: ClassTag](
+      f: Iterator[InternalRow] => Iterator[U],
+      preservesPartitioning: Boolean = false): RDD[U] = {
+    partitionsRDD.mapPartitionsInternal(iter => f(iter.next().iterator),
+                                        preservesPartitioning)
   }
 
   override def setName(_name: String): this.type = {
@@ -94,32 +106,41 @@ class AggregateSetRDD(val partitionsRDD: RDD[AggregateSetRDDPartition], monotoni
   }
 
   override def count(): Long = {
-    //partitionsRDD.map(_.size).collect().sum
+    // partitionsRDD.map(_.size).collect().sum
     partitionsRDD.map(_.size).reduce(_ + _)
   }
 
-  override def computeOrReadCheckpoint(split: Partition, context: TaskContext): Iterator[InternalRow] = {
-    if (isCheckpointed)
-      firstParent[AggregateSetRDDPartition].iterator(split, context).next.iterator
-    else
-      compute(split, context)
+  override def computeOrReadCheckpoint(
+      split: Partition,
+      context: TaskContext): Iterator[InternalRow] = {
+    if (isCheckpointed) {
+      firstParent[AggregateSetRDDPartition]
+        .iterator(split, context)
+        .next
+        .iterator
+    } else compute(split, context)
   }
 
-  override def compute(part: Partition, context: TaskContext): Iterator[InternalRow] = {
+  override def compute(part: Partition,
+                       context: TaskContext): Iterator[InternalRow] = {
     firstParent[AggregateSetRDDPartition].iterator(part, context).next.iterator
   }
 
   // assume other is already partitioned by AggrGroup
-  def update(other: RDD[InternalRow],
-             cachingFun: (RDD[_] => Unit)): (RDD[InternalRow], RDD[InternalRow]) = {
-    val newPartitionsRDD = partitionsRDD.zipPartitions(other, true) { (thisIter, otherIter) =>
-      val thisPart = thisIter.next()
-      Iterator(thisPart.update(otherIter, monotonicAggregate))
+  def update(
+      other: RDD[InternalRow],
+      cachingFun: (RDD[_] => Unit)): (RDD[InternalRow], RDD[InternalRow]) = {
+    val newPartitionsRDD = partitionsRDD.zipPartitions(other, true) {
+      (thisIter, otherIter) =>
+        val thisPart = thisIter.next()
+        Iterator(thisPart.update(otherIter, monotonicAggregate))
     }
 
-    // apply the caching function here since the two mapPartition below will cause the recomputation of the zipPartitions above
-    if (cachingFun != null)
+    // apply the caching function here since the two mapPartition below will cause
+    // the recomputation of the zipPartitions above
+    if (cachingFun != null) {
       cachingFun(newPartitionsRDD)
+    }
 
     val allSetRDD: RDD[AggregateSetRDDPartition] = newPartitionsRDD
       .mapPartitionsInternal(_.map(_._1), true)
@@ -127,13 +148,15 @@ class AggregateSetRDD(val partitionsRDD: RDD[AggregateSetRDDPartition], monotoni
     val deltaSPrimeRDD: RDD[SetRDDPartition[InternalRow]] = newPartitionsRDD
       .mapPartitionsInternal(_.map(_._2), true)
 
-    (new AggregateSetRDD(allSetRDD, monotonicAggregate).setName("AggregateSetRDD - all"),
-      new SetRDD(deltaSPrimeRDD).setName("SetRDD - deltaSPrime"))
+    (new AggregateSetRDD(allSetRDD, monotonicAggregate)
+       .setName("AggregateSetRDD - all"),
+     new SetRDD(deltaSPrimeRDD).setName("SetRDD - deltaSPrime"))
   }
 }
 
 object AggregateSetRDD extends Logging {
-  // this expects that the rows are already shuffled by AggrGroup which is the case when called from MonotonicAggregate
+  // this expects that the rows are already shuffled by AggrGroup which is
+  // the case when called from MonotonicAggregate
   def apply(rdd: RDD[InternalRow],
             schema: StructType,
             monotonicAggregate: MonotonicAggregate): AggregateSetRDD = {
@@ -147,44 +170,50 @@ object AggregateSetRDD extends Logging {
     // TODO implement MCOUNT/MSUM monotonic aggregates
     val isMinMax = monotonicAggregate.isMin || monotonicAggregate.isMax
 
-    val aggregateSetRDDPartitions: RDD[AggregateSetRDDPartition] = isMinMax match {
-      case true => {
-        val keyPositions = Array.fill(schema.length)(1)
-        // last column is aggregate value
-        keyPositions(schema.length - 1) = 0
-        val schemaInfo = new SchemaInfo(schema, keyPositions)
+    val aggregateSetRDDPartitions: RDD[AggregateSetRDDPartition] =
+      isMinMax match {
+        case true => {
+          val keyPositions = Array.fill(schema.length)(1)
+          // last column is aggregate value
+          keyPositions(schema.length - 1) = 0
+          val schemaInfo = new SchemaInfo(schema, keyPositions)
 
-        // likely the iterator is produced from a shuffle or base relation
-        val output = rdd.mapPartitionsInternal(iter => {
-          val taIter = new TungstenMonotonicAggregationIterator(
-            monotonicAggregate.groupingExpressions,
-            monotonicAggregate.nonCompleteAggregateExpressions,
-            monotonicAggregate.nonCompleteAggregateAttributes,
-            monotonicAggregate.completeAggregateExpressions,
-            monotonicAggregate.completeAggregateAttributes,
-            monotonicAggregate.initialInputBufferOffset,
-            monotonicAggregate.resultExpressions,
-            monotonicAggregate.newMutableProjection,
-            monotonicAggregate.child.output,
-            iter,
-            monotonicAggregate.testFallbackStartsAt,
-            numInputRows,
-            numOutputRows,
-            dataSize,
-            spillSize,
-            null)
+          // likely the iterator is produced from a shuffle or base relation
+          val output = rdd.mapPartitionsInternal(
+            iter => {
+              val taIter = new TungstenMonotonicAggregationIterator(
+                monotonicAggregate.groupingExpressions,
+                monotonicAggregate.nonCompleteAggregateExpressions,
+                monotonicAggregate.nonCompleteAggregateAttributes,
+                monotonicAggregate.completeAggregateExpressions,
+                monotonicAggregate.completeAggregateAttributes,
+                monotonicAggregate.initialInputBufferOffset,
+                monotonicAggregate.resultExpressions,
+                monotonicAggregate.newMutableProjection,
+                monotonicAggregate.child.output,
+                iter,
+                monotonicAggregate.testFallbackStartsAt,
+                numInputRows,
+                numOutputRows,
+                dataSize,
+                spillSize,
+                null
+              )
 
-          Iterator(new AggregateSetRDDMinMaxPartition(taIter.hashMap,
-            schemaInfo,
-            monotonicAggregate))
-        }, true)
+              Iterator(
+                new AggregateSetRDDMinMaxPartition(taIter.hashMap,
+                                                   schemaInfo,
+                                                   monotonicAggregate))
+            },
+            true
+          )
 
-        output.asInstanceOf[RDD[AggregateSetRDDPartition]]
+          output.asInstanceOf[RDD[AggregateSetRDDPartition]]
+        }
+        case _ => {
+          throw new Exception()
+        }
       }
-      case _ => {
-        throw new Exception()
-      }
-    }
 
     new AggregateSetRDD(aggregateSetRDDPartitions, monotonicAggregate)
   }

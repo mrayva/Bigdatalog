@@ -17,23 +17,29 @@
 
 package edu.ucla.cs.wis.bigdatalog.spark.execution.recursion
 
-import edu.ucla.cs.wis.bigdatalog.spark.execution.aggregates.{AggregateSetRDD, MonotonicAggregate}
+import edu.ucla.cs.wis.bigdatalog.spark.execution.aggregates.{
+  AggregateSetRDD,
+  MonotonicAggregate
+}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.scheduler.fixedpoint.FixedPointJobDefinition
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.SparkPlan
 
-case class AggregateRecursion(name : String,
-                              isLinearRecursion : Boolean,
-                              left : SparkPlan,
-                              right : SparkPlan,
+case class AggregateRecursion(name: String,
+                              isLinearRecursion: Boolean,
+                              left: SparkPlan,
+                              right: SparkPlan,
                               partitioning: Seq[Int])
-  extends RecursionBase(name, isLinearRecursion, left, right, partitioning) {
+    extends RecursionBase(name, isLinearRecursion, left, right, partitioning) {
 
-  override val version = bigDatalogContext.sparkContext.getConf.getInt("spark.datalog.aggregaterecursion.version", 3)
+  override val version = bigDatalogContext.sparkContext.getConf
+    .getInt("spark.datalog.aggregaterecursion.version", 3)
 
-  def exitRulesAggregates: MonotonicAggregate = left.asInstanceOf[MonotonicAggregate]
-  def recursiveRulesAggregates: MonotonicAggregate = right.asInstanceOf[MonotonicAggregate]
+  def exitRulesAggregates: MonotonicAggregate =
+    left.asInstanceOf[MonotonicAggregate]
+  def recursiveRulesAggregates: MonotonicAggregate =
+    right.asInstanceOf[MonotonicAggregate]
   var allRDD: AggregateSetRDD = null
 
   override def doExecute(): RDD[InternalRow] = {
@@ -44,10 +50,12 @@ case class AggregateRecursion(name : String,
         logInfo("Aggregate recursion version: Multi-Job PSN")
         doMultiJobPSN()
       case 2 =>
-        logInfo("Aggregate recursion version: Multi-Job PSN w/ AggregateSetRDD")
+        logInfo(
+          "Aggregate recursion version: Multi-Job PSN w/ AggregateSetRDD")
         doMultiJobPSNWithSetRDD()
-      case 3=>
-        logInfo("Aggregate recursion version: Single-Job PSN w/ AggregateSetRDD")
+      case 3 =>
+        logInfo(
+          "Aggregate recursion version: Single-Job PSN w/ AggregateSetRDD")
         doSingleJobPSNWithSetRDD()
     }
   }
@@ -66,7 +74,7 @@ case class AggregateRecursion(name : String,
     bigDatalogContext.setRecursiveRDD(this.name, deltaS)
     bigDatalogContext.setRecursiveRDD("all_" + this.name, all)
 
-    var count : Long = 1 // so we loop at least once
+    var count: Long = 1 // so we loop at least once
     while (count > 0) {
       // deltaS' = T_R(deltaS)
       var deltaSPrime = right.execute()
@@ -79,7 +87,8 @@ case class AggregateRecursion(name : String,
 
       if (count > 0) {
         // S = S U deltaS'
-        all = all.union(deltaSPrime)
+        all = all
+          .union(deltaSPrime)
           .coalesce(numPartitions)
 
         cachedRDDs.persist(all)
@@ -132,13 +141,14 @@ case class AggregateRecursion(name : String,
 
   override def doSingleJobPSNWithSetRDD(): RDD[InternalRow] = {
     // S = T_E(M)
-    allRDD = exitRulesAggregates.execute(null, persist).asInstanceOf[AggregateSetRDD]
+    allRDD =
+      exitRulesAggregates.execute(null, persist).asInstanceOf[AggregateSetRDD]
     persist(allRDD)
     allRDD.count()
 
     val deltaS = allRDD
 
-    //persist(deltaS)
+    // persist(deltaS)
     bigDatalogContext.setRecursiveRDD(this.name, deltaS)
     bigDatalogContext.setRecursiveRDD("all_" + this.name, allRDD)
 
@@ -150,8 +160,9 @@ case class AggregateRecursion(name : String,
     allRDD
   }
 
-  var previousTime : Long = _
-  override def setupIteration(fpjd: FixedPointJobDefinition, deltaSPrimeRDD: RDD[_]): RDD[_] = {
+  var previousTime: Long = _
+  override def setupIteration(fpjd: FixedPointJobDefinition,
+                              deltaSPrimeRDD: RDD[_]): RDD[_] = {
     // deltaS' = T_R(deltaS) - S
     val nextDeltaSPrimeRDD = recursiveRulesAggregates.execute(allRDD, persist)
     persist(nextDeltaSPrimeRDD)
@@ -160,18 +171,23 @@ case class AggregateRecursion(name : String,
     allRDD = recursiveRulesAggregates.allRDD
     fpjd.finalRDD = allRDD
 
-    bigDatalogContext.setRecursiveRDD(this.name, nextDeltaSPrimeRDD.asInstanceOf[RDD[InternalRow]])
+    bigDatalogContext.setRecursiveRDD(
+      this.name,
+      nextDeltaSPrimeRDD.asInstanceOf[RDD[InternalRow]])
     bigDatalogContext.setRecursiveRDD("all_" + this.name, allRDD)
 
     iteration += 1
     cachedRDDs.cleanUpIteration()
 
-    logInfo("Fixed Point Iteration # " + iteration + ", time: " + (System.currentTimeMillis() - previousTime) + "ms")
+    logInfo(
+      "Fixed Point Iteration # " + iteration + ", time: " +
+        (System.currentTimeMillis() - previousTime) + "ms")
     previousTime = System.currentTimeMillis()
 
     // TODO - hook up aggregate programs for iterating w/in FixedPointResultTasks
-    //if (iterateInFixedPointResultTasks)
-     // fpjd.setRDDIds(getCachedRDDId(allRDD)-1, oldAllRDDId-1, getCachedRDDId(nextDeltaSPrimeRDD), getCachedRDDId(deltaSPrimeRDD))
+    // if (iterateInFixedPointResultTasks)
+    // fpjd.setRDDIds(getCachedRDDId(allRDD)-1, oldAllRDDId-1,
+    //                       getCachedRDDId(nextDeltaSPrimeRDD), getCachedRDDId(deltaSPrimeRDD))
 
     nextDeltaSPrimeRDD
   }

@@ -19,64 +19,80 @@ package edu.ucla.cs.wis.bigdatalog.spark.execution.recursion
 
 import edu.ucla.cs.wis.bigdatalog.spark.execution.setrdd.SetRDD
 import edu.ucla.cs.wis.bigdatalog.spark.BigDatalogContext
-import org.apache.spark.sql.catalyst.plans.physical.{ClusteredDistribution, HashPartitioning, Partitioning, UnknownPartitioning}
+import org.apache.spark.sql.catalyst.plans.physical.{
+  ClusteredDistribution,
+  HashPartitioning,
+  Partitioning,
+  UnknownPartitioning
+}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SQLContext
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.{BinaryNode, SparkPlan}
+import org.apache.spark.sql.catalyst.expressions._
 
-case class MutualRecursion(name : String,
-                           isLinearRecursion : Boolean,
-                           left : SparkPlan,
-                           right : SparkPlan,
+case class MutualRecursion(name: String,
+                           isLinearRecursion: Boolean,
+                           left: SparkPlan,
+                           right: SparkPlan,
                            partitioning: Seq[Int])
-  extends BinaryNode {
-  override def output = right.output
+    extends BinaryNode {
+  override def output: Seq[Attribute] = {
+    right.output
+  }
 
   @transient
-  final val bigDatalogContext = SQLContext.getActive().getOrElse(null).asInstanceOf[BigDatalogContext]
+  final val bigDatalogContext =
+    SQLContext.getActive().getOrElse(null).asInstanceOf[BigDatalogContext]
 
   // 'left' is optional
-  override def children = if (left == null) Seq(right) else Seq(left, right)
+  override def children: Seq[SparkPlan] =
+    if (left == null) { Seq(right) } else Seq(left, right)
 
-  override def simpleString = {
-    var str = s"$nodeName " + output.mkString("[", ",", "]")  +
+  override def simpleString: String = {
+    var str = s"$nodeName " + output.mkString("[", ",", "]") +
       " (" + (if (isLinearRecursion) "Linear" else "NonLinear") + ") [" + name + "]"
 
-    if (partitioning != null && partitioning != Nil)
+    if (partitioning != null && partitioning != Nil) {
       str += "[" + partitioning.mkString(",") + "]"
+    }
     str
   }
 
   override def outputPartitioning: Partitioning = {
     val numPartitions = bigDatalogContext.conf.numShufflePartitions
-    if (partitioning == Nil)
+
+    if (partitioning == Nil) {
       UnknownPartitioning(numPartitions)
-    else
-      HashPartitioning(partitioning.zip(output).filter(_._1 == 1).map(_._2), numPartitions)
+    } else HashPartitioning(partitioning.zip(output).filter(_._1 == 1).map(_._2), numPartitions)
   }
 
   override def requiredChildDistribution: Seq[ClusteredDistribution] = {
     // left is exit rule so it will not have aliased argument for arithmetic
-    val rightExpressions = partitioning.zip(right.output).filter(_._1 == 1).map(_._2)
+    val rightExpressions =
+      partitioning.zip(right.output).filter(_._1 == 1).map(_._2)
 
     if (left == null) {
       ClusteredDistribution(rightExpressions) :: Nil
     } else {
-      val leftExpressions = partitioning.zip(left.output).filter(_._1 == 1).map(_._2)
-      ClusteredDistribution(leftExpressions) :: ClusteredDistribution(rightExpressions) :: Nil
+      val leftExpressions =
+        partitioning.zip(left.output).filter(_._1 == 1).map(_._2)
+      ClusteredDistribution(leftExpressions) :: ClusteredDistribution(
+        rightExpressions) :: Nil
     }
   }
 
   override def canProcessUnsafeRows: Boolean = true
 
-  val cachedRDDs = new CachedRDDManager(bigDatalogContext.getConf.defaultStorageLevel)
+  val cachedRDDs = new CachedRDDManager(
+    bigDatalogContext.getConf.defaultStorageLevel)
 
-  var iteration : Integer = 0
+  var iteration: Integer = 0
   var exitRulesCompleted = (left == null)
   var all: SetRDD = null
   var deltaS: RDD[InternalRow] = null
-  val version = bigDatalogContext.sparkContext.getConf.getInt("spark.datalog.recursion.version", 3)
+  val version = bigDatalogContext.sparkContext.getConf
+    .getInt("spark.datalog.recursion.version", 3)
 
   def doExecute(): RDD[InternalRow] = {
     if (!exitRulesCompleted) doExit()
@@ -104,15 +120,16 @@ case class MutualRecursion(name : String,
     var deltaSPrime: RDD[InternalRow] = null
     if (all == null) {
       // deltaS' = T_R(deltaS) - S
-      all = SetRDD(right.execute(), schema).setName("all"+iteration)
+      all = SetRDD(right.execute(), schema).setName("all" + iteration)
       // S = S U deltaS'
       deltaSPrime = all
     } else {
       // if there is no exit rules, we have to make sure we shuffled the initial set
       // deltaS' = T_R(deltaS) - S
-      deltaSPrime = all.diff(right.execute()).setName("deltaSPrime"+iteration)
+      deltaSPrime =
+        all.diff(right.execute()).setName("deltaSPrime" + iteration)
       // S = S U deltaS'
-      all = all.union(deltaSPrime).setName("all"+iteration)
+      all = all.union(deltaSPrime).setName("all" + iteration)
     }
 
     cachedRDDs.persist(deltaSPrime)

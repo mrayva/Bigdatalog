@@ -31,7 +31,7 @@ class BigDatalogConf(sparkDefaultParallelism: Int) extends Serializable {
     if (lastPart.forall(_.isDigit)) {
       val storageLevelName = storageLevelType.substring(0, storageLevelType.lastIndexOf("_"))
       val storageLevel = StorageLevel.fromString(storageLevelName)
-      //new StorageLevel(useDisk, useMemory, useOffHeap, deserialized, replication))
+      // new StorageLevel(useDisk, useMemory, useOffHeap, deserialized, replication))
       StorageLevel(storageLevel.useDisk,
         storageLevel.useMemory,
         storageLevel.useOffHeap,

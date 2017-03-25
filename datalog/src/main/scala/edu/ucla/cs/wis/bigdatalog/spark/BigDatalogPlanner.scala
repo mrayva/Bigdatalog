@@ -32,32 +32,37 @@ class BigDatalogPlanner(val bigDatalogContext: BigDatalogContext)
   extends SparkPlanner(bigDatalogContext) {
   self: BigDatalogPlanner =>
 
-  override def strategies: Seq[Strategy] = (Recursion :: MonotonicAggregation :: CachedEquiJoinSelection :: Nil) ++ super.strategies
+  override def strategies: Seq[Strategy] =
+          (Recursion :: MonotonicAggregation :: CachedEquiJoinSelection :: Nil) ++ super.strategies
 
   object Recursion extends Strategy {
 
     def apply(plan: LogicalPlan): Seq[SparkPlan] = plan match {
       case logical.Recursion(name, isLinear, left, right, partitioning) =>
-        execution.recursion.Recursion(name, isLinear, planLater(left), planLater(right), partitioning) :: Nil
+        execution.recursion.Recursion(name, isLinear, planLater(left),
+                                      planLater(right), partitioning) :: Nil
       case logical.MutualRecursion(name, isLinear, left, right, partitioning) =>
         val planLeft = if (left == null) null else planLater(left)
-        execution.recursion.MutualRecursion(name, isLinear, planLeft, planLater(right), partitioning) :: Nil
+        execution.recursion.MutualRecursion(name, isLinear, planLeft,
+                                            planLater(right), partitioning) :: Nil
       case logical.LinearRecursiveRelation(name, output, partitioning) =>
         execution.LinearRecursiveRelation(name, output, partitioning) :: Nil
       case logical.NonLinearRecursiveRelation(name, output, partitioning) =>
         execution.NonLinearRecursiveRelation(name, output, partitioning) :: Nil
       case logical.AggregateRecursion(name, output, left, right, partitioning) =>
-        execution.recursion.AggregateRecursion(name, output, planLater(left), planLater(right), partitioning) :: Nil
+        execution.recursion.AggregateRecursion(name, output, planLater(left),
+                                               planLater(right), partitioning) :: Nil
       case logical.AggregateRelation(name, output, partitioning) =>
         execution.AggregateRelation(name, output, partitioning) :: Nil
       case _ => Nil
     }
   }
 
-  /*Copied and adapted from Aggregation strategy in SparkStrategies*/
+  /* Copied and adapted from Aggregation strategy in SparkStrategies */
   object MonotonicAggregation extends Strategy {
     def apply(plan: LogicalPlan): Seq[SparkPlan] = plan match {
-      case logical.MonotonicAggregate(groupingExpressions, resultExpressions, child, partitioning) => {
+      case logical.MonotonicAggregate(groupingExpressions, resultExpressions,
+                                      child, partitioning) => {
         // A single aggregate expression might appear multiple times in resultExpressions.
         // In order to avoid evaluating an individual aggregate function multiple times, we'll
         // build a set of the distinct aggregate expressions and build a function which can
@@ -119,7 +124,8 @@ class BigDatalogPlanner(val bigDatalogContext: BigDatalogContext)
           }.asInstanceOf[NamedExpression]
         }
 
-        if (bigDatalogContext.getConf.getBoolean("spark.datalog.monotonicaggregate.usepartial", true)) {
+        if (bigDatalogContext.getConf.getBoolean("spark.datalog.monotonicaggregate.usepartial",
+                                                                                          true)) {
           planMonotonicAggregate(
             namedGroupingExpressions.map(_._2),
             aggregateExpressions,
@@ -143,7 +149,8 @@ class BigDatalogPlanner(val bigDatalogContext: BigDatalogContext)
 
   def planMonotonicAggregateWithoutPartial(groupingExpressions: Seq[NamedExpression],
                                            aggregateExpressions: Seq[AggregateExpression],
-                                           aggregateFunctionToAttribute: Map[(AggregateFunction, Boolean), Attribute],
+                                           aggregateFunctionToAttribute: Map[(AggregateFunction,
+                                                                              Boolean), Attribute],
                                            resultExpressions: Seq[NamedExpression],
                                            partitioning: Seq[Int],
                                            child: SparkPlan): Seq[SparkPlan] = {
@@ -167,7 +174,8 @@ class BigDatalogPlanner(val bigDatalogContext: BigDatalogContext)
 
   def planMonotonicAggregate(groupingExpressions: Seq[NamedExpression],
                              aggregateExpressions: Seq[AggregateExpression],
-                             aggregateFunctionToAttribute: Map[(AggregateFunction, Boolean), Attribute],
+                             aggregateFunctionToAttribute: Map[(AggregateFunction,
+                                                                Boolean), Attribute],
                              resultExpressions: Seq[NamedExpression],
                              partitioning: Seq[Int],
                              child: SparkPlan): Seq[SparkPlan] = {
@@ -233,7 +241,8 @@ class BigDatalogPlanner(val bigDatalogContext: BigDatalogContext)
                                           right: LogicalPlan,
                                           condition: Option[Expression],
                                           side: joins.BuildSide): Seq[SparkPlan] = {
-      val shuffleHashJoin = ShuffleHashJoin(leftKeys, rightKeys, side, planLater(left), planLater(right))
+      val shuffleHashJoin = ShuffleHashJoin(leftKeys, rightKeys, side,
+                                            planLater(left), planLater(right))
       condition.map(Filter(_, shuffleHashJoin)).getOrElse(shuffleHashJoin) :: Nil
     }
 

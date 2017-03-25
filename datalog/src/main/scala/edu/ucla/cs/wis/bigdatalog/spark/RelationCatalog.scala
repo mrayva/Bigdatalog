@@ -26,7 +26,7 @@ import scala.collection.mutable.HashMap
 class RelationCatalog extends Serializable {
   val directory = HashMap.empty[String, RelationInfo]
 
-  def addRelation(name : String, schema : StructType) : Unit = {
+  def addRelation(name: String, schema: StructType): Unit = {
     val relationInfo = new RelationInfo().setSchema(schema)
     directory.get(name) match {
       case Some(oldRelationInfo) =>
@@ -36,25 +36,24 @@ class RelationCatalog extends Serializable {
     }
   }
 
-  def setRDD(name : String, rdd : RDD[InternalRow]) : Unit = {
+  def setRDD(name: String, rdd: RDD[InternalRow]): Unit = {
     directory.get(name) match {
       case Some(oldRelationInfo) => oldRelationInfo.setRDD(rdd)
       case None => directory.put(name, new RelationInfo().setRDD(rdd))
     }
   }
 
-  def getRelationInfo(name : String) : RelationInfo = {
-    if (directory.contains(name))
+  def getRelationInfo(name: String): RelationInfo = {
+    if (directory.contains(name)) {
       directory(name)
-    else
-      null
+    } else null
   }
 
-  def removeRDD(name : String) : Unit = {
+  def removeRDD(name: String): Unit = {
     directory.remove(name)
   }
 
-  def clear() : Unit = {
+  def clear(): Unit = {
     directory.clear()
   }
 
@@ -66,24 +65,24 @@ class RelationCatalog extends Serializable {
 }
 
 class RelationInfo() extends Serializable {
-  private var schema : StructType = _
-  private var rdd : RDD[InternalRow] = _
+  private var schema: StructType = _
+  private var rdd: RDD[InternalRow] = _
 
-  def getSchema() : StructType = schema
+  def getSchema(): StructType = schema
 
-  def setSchema(schema : StructType) : RelationInfo = {
+  def setSchema(schema: StructType): RelationInfo = {
     this.schema = schema
     this
   }
 
-  def getRDD() : RDD[InternalRow] = rdd
+  def getRDD(): RDD[InternalRow] = rdd
 
-  def setRDD(rdd : RDD[InternalRow]) : RelationInfo = {
+  def setRDD(rdd: RDD[InternalRow]): RelationInfo = {
     this.rdd = rdd
     this
   }
 
-  override def toString() : String = {
+  override def toString(): String = {
     "schema: " + this.schema + (if (rdd != null) " RDD")
   }
 }

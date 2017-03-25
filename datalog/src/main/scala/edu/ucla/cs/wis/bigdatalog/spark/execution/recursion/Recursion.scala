@@ -36,7 +36,8 @@ case class Recursion(name: String,
 
   var allRDD: SetRDD = null
 
-  val collectStats = bigDatalogContext.sparkContext.getConf.getBoolean("spark.datalog.recursion.collectstats", false)
+  val collectStats = bigDatalogContext.sparkContext.getConf.
+                                          getBoolean("spark.datalog.recursion.collectstats", false)
   val factsPerIteration = new mutable.LinkedHashMap[Int, (Long, Long)]
 
   override def doExecute(): RDD[InternalRow] = {
@@ -57,7 +58,8 @@ case class Recursion(name: String,
 
   def doMultiJobPSN(): RDD[InternalRow] = {
     def distinct(rel: RDD[InternalRow], part: Partitioner) : RDD[InternalRow] = {
-      new ShuffledRDD[InternalRow, Null, Null](rel.map(x => (x, null)), part).mapPartitions(iter => {
+      new ShuffledRDD[InternalRow, Null, Null](rel.map(x =>
+                                                      (x, null)), part).mapPartitions(iter => {
         val set = new HashSet[InternalRow]
         while (iter.hasNext)
           set.add(iter.next()._1)
@@ -65,7 +67,8 @@ case class Recursion(name: String,
       }, true)
     }
 
-    def subtract(rel1: RDD[InternalRow], rel2: RDD[InternalRow], part: Partitioner) : RDD[InternalRow] =
+    def subtract(rel1: RDD[InternalRow], rel2: RDD[InternalRow], part: Partitioner) :
+                                                                                 RDD[InternalRow] =
       new SubtractedTuple2RDD(rel1.map(x => (x, null)),
         rel2.mapPartitions(itr => itr.map(x => (x, null)), true)
         , part)
@@ -88,7 +91,8 @@ case class Recursion(name: String,
       // deltaS' = T_R(deltaS) - S
       // cache the result since it will be used again when unioning with 'all' below
       // do distinct here since we no longer apply it to plans because of SetRDD below
-      val deltaSPrime = distinct(subtract(right.execute().mapPartitions(iter => iter.map(x => x.copy())), all, part), part)
+      val deltaSPrime = distinct(subtract(right.execute().
+                                  mapPartitions(iter => iter.map(x => x.copy())), all, part), part)
 
       cachedRDDs.persist(deltaSPrime)
 
@@ -138,7 +142,7 @@ case class Recursion(name: String,
     while (!fixedPointReached) {
       val start = System.currentTimeMillis()
       // deltaS' = T_R(deltaS) - S
-      val deltaSPrime = all.diff(right.execute()).setName("deltaSPrime"+iteration)
+      val deltaSPrime = all.diff(right.execute()).setName("deltaSPrime" + iteration)
       persist(deltaSPrime)
       val count = deltaSPrime.count()
 
@@ -154,7 +158,7 @@ case class Recursion(name: String,
         }
 
         // S = S U deltaS'
-        all = all.union(deltaSPrime).setName("all"+iteration)
+        all = all.union(deltaSPrime).setName("all" + iteration)
         persist(all)
 
         // deltaS = deltaS'
@@ -163,15 +167,18 @@ case class Recursion(name: String,
         iteration += 1
         cachedRDDs.cleanUpIteration()
 
-        logInfo("iteration: " + iteration + " deltaSet size: " + count + " time: " + (System.currentTimeMillis() - start) + " ms")
+        logInfo("iteration: " + iteration + " deltaSet size: " + count + " time: " +
+                                                      (System.currentTimeMillis() - start) + " ms")
       }
     }
 
     cleanUpCachedRelations()
 
     if (collectStats) {
-      logInfo("[" + factsPerIteration.map(entry => entry._2._1).mkString(",") + "] " + factsPerIteration.map(_._2._1).sum + " generated facts total")
-      logInfo("[" + factsPerIteration.map(entry => entry._2._2).mkString(",") + "] " + factsPerIteration.map(_._2._2).sum + " delta facts total")
+      logInfo("[" + factsPerIteration.map(entry => entry._2._1).mkString(",") + "] " +
+                    factsPerIteration.map(_._2._1).sum + " generated facts total")
+      logInfo("[" + factsPerIteration.map(entry => entry._2._2).mkString(",") + "] " +
+                    factsPerIteration.map(_._2._2).sum + " delta facts total")
     }
 
     all
@@ -192,7 +199,7 @@ case class Recursion(name: String,
 
     previousTime = System.currentTimeMillis()
 
-    val deltaSPrime = allRDD.diff(right.execute()).setName("deltaSPrime"+iteration)
+    val deltaSPrime = allRDD.diff(right.execute()).setName("deltaSPrime" + iteration)
     persist(deltaSPrime)
     this.sparkContext.runFixedPointJob(deltaSPrime, fpjd, partitionNotEmpty)
     allRDD
@@ -213,21 +220,25 @@ case class Recursion(name: String,
     iteration += 1
     cachedRDDs.cleanUpIteration()
 
-    logInfo("Fixed Point Iteration # " + iteration + ", time: " + (System.currentTimeMillis() - previousTime) + "ms")
+    logInfo("Fixed Point Iteration # " + iteration + ", time: "
+                                       + (System.currentTimeMillis() - previousTime) + "ms")
 
     previousTime = System.currentTimeMillis()
     // deltaS' = S - rawDeltaS' (i.e. deduplicate)
     val nextDeltaSPrimeRDD = allRDD.diff(right.execute())
     persist(nextDeltaSPrimeRDD)
 
-    if (iterateInFixedPointResultTasks)
-      fpjd.setRDDIds(getCachedRDDId(allRDD), oldAllRDDId, getCachedRDDId(nextDeltaSPrimeRDD), getCachedRDDId(deltaSPrimeRDD))
+    if (iterateInFixedPointResultTasks) {
+      fpjd.setRDDIds(getCachedRDDId(allRDD), oldAllRDDId, getCachedRDDId(nextDeltaSPrimeRDD),
+        getCachedRDDId(deltaSPrimeRDD))
+    }
 
     nextDeltaSPrimeRDD
   }
 }
 
-class SubtractedTuple2RDD(rel1: RDD[(InternalRow, Null)], rel2: RDD[(InternalRow, Null)], part: Partitioner)
+class SubtractedTuple2RDD(rel1: RDD[(InternalRow, Null)], rel2: RDD[(InternalRow, Null)],
+                                                          part: Partitioner)
   extends SubtractedRDD[InternalRow, Null, Null](rel1, rel2, part) {
   override def compute(p: Partition, context: TaskContext): Iterator[(InternalRow, Null)] = {
     val partition = p.asInstanceOf[CoGroupPartition]

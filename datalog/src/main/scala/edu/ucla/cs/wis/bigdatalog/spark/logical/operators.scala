@@ -17,37 +17,48 @@
 
 package edu.ucla.cs.wis.bigdatalog.spark.logical
 
-import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, NamedExpression}
-import org.apache.spark.sql.catalyst.plans.logical.{BinaryNode, LeafNode, LogicalPlan, Statistics, UnaryNode}
+import org.apache.spark.sql.catalyst.expressions.{
+  Attribute,
+  Expression,
+  NamedExpression
+}
+import org.apache.spark.sql.catalyst.plans.logical.{
+  BinaryNode,
+  LeafNode,
+  LogicalPlan,
+  Statistics,
+  UnaryNode
+}
 
 case class Recursion(name: String,
                      isLinear: Boolean,
                      left: LogicalPlan,
                      right: LogicalPlan,
-                     partitioning: Seq[Int]) extends BinaryNode {
+                     partitioning: Seq[Int])
+    extends BinaryNode {
   // left is exitRules plan
   // right is recursive rules plan
   override def output: Seq[Attribute] = right.output
 }
 
 case class MutualRecursion(name: String,
-                             isLinear: Boolean,
-                             left: LogicalPlan,
-                             right: LogicalPlan,
-                             partitioning: Seq[Int]) extends BinaryNode {
+                           isLinear: Boolean,
+                           left: LogicalPlan,
+                           right: LogicalPlan,
+                           partitioning: Seq[Int])
+    extends BinaryNode {
 
   override def output: Seq[Attribute] = right.output
 
   override def children: Seq[LogicalPlan] = {
-    if (left == null)
+    if (left == null) {
       Seq(right)
-    else
-      Seq(left, right)
+    } else Seq(left, right)
   }
 
   override def generateTreeString(depth: Int,
-                         lastChildren: Seq[Boolean],
-                         builder: StringBuilder): StringBuilder = {
+                                  lastChildren: Seq[Boolean],
+                                  builder: StringBuilder): StringBuilder = {
     if (depth > 0) {
       lastChildren.init.foreach { isLast =>
         val prefixFragment = if (isLast) "   " else ":  "
@@ -63,31 +74,43 @@ case class MutualRecursion(name: String,
 
     if (children.nonEmpty) {
       val exitRule = children.init
-      if (exitRule != null)
-        exitRule.foreach(_.generateTreeString(depth + 1, lastChildren :+ false, builder))
-      children.last.generateTreeString(depth + 1, lastChildren :+ true, builder)
+      if (exitRule != null) {
+        exitRule.foreach(
+          _.generateTreeString(depth + 1, lastChildren :+ false, builder))
+      }
+      children.last.generateTreeString(depth + 1,
+                                       lastChildren :+ true,
+                                       builder)
     }
 
     builder
   }
 }
 
-case class LinearRecursiveRelation(_name: String, output: Seq[Attribute], partitioning: Seq[Int]) extends LeafNode {
+case class LinearRecursiveRelation(_name: String,
+                                   output: Seq[Attribute],
+                                   partitioning: Seq[Int])
+    extends LeafNode {
   override def statistics: Statistics = Statistics(Long.MaxValue)
   var name = _name
 }
 
-case class NonLinearRecursiveRelation(_name: String, output: Seq[Attribute], partitioning: Seq[Int]) extends LeafNode {
+case class NonLinearRecursiveRelation(_name: String,
+                                      output: Seq[Attribute],
+                                      partitioning: Seq[Int])
+    extends LeafNode {
   override def statistics: Statistics = Statistics(Long.MaxValue)
 
-  def name = "all_" + _name
+  def name(): String = "all_" + _name
 }
 
 case class MonotonicAggregate(groupingExpressions: Seq[Expression],
                               aggregateExpressions: Seq[NamedExpression],
                               child: LogicalPlan,
-                              partitioning: Seq[Int]) extends UnaryNode {
-  override lazy val resolved: Boolean = !expressions.exists(!_.resolved) && childrenResolved
+                              partitioning: Seq[Int])
+    extends UnaryNode {
+  override lazy val resolved
+    : Boolean = !expressions.exists(!_.resolved) && childrenResolved
 
   override def output: Seq[Attribute] = aggregateExpressions.map(_.toAttribute)
 }
@@ -96,13 +119,17 @@ case class AggregateRecursion(name: String,
                               isLinear: Boolean,
                               left: LogicalPlan,
                               right: LogicalPlan,
-                              partitioning: Seq[Int]) extends BinaryNode {
+                              partitioning: Seq[Int])
+    extends BinaryNode {
   // left is exitRules plan
   // right is recursive rules plan
   override def output: Seq[Attribute] = right.output
 }
 
-case class AggregateRelation(_name: String, output: Seq[Attribute], partitioning: Seq[Int]) extends LeafNode {
+case class AggregateRelation(_name: String,
+                             output: Seq[Attribute],
+                             partitioning: Seq[Int])
+    extends LeafNode {
   override def statistics: Statistics = Statistics(Long.MaxValue)
   var name = _name
 }

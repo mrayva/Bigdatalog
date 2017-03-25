@@ -40,9 +40,11 @@ case class ShuffleHashJoin(leftKeys: Seq[Expression],
   extends BinaryNode with HashJoin {
 
   @transient
-  final protected val bigDatalogContext = SQLContext.getActive().getOrElse(null).asInstanceOf[BigDatalogContext]
+  final protected val bigDatalogContext = SQLContext.getActive().getOrElse(null).
+                                                                    asInstanceOf[BigDatalogContext]
 
-  val cacheBuildSide = bigDatalogContext.getConf.getBoolean("spark.datalog.shufflehashjoin.cachebuildside", true)
+  val cacheBuildSide = bigDatalogContext.getConf.
+                                   getBoolean("spark.datalog.shufflehashjoin.cachebuildside", true)
 
   override lazy val metrics = Map(
     "numLeftRows" -> SQLMetrics.createLongMetric(sparkContext, "number of left rows"),
@@ -73,14 +75,16 @@ case class ShuffleHashJoin(leftKeys: Seq[Expression],
     if (cacheBuildSide) {
       if (cachedBuildPlan == null) {
         cachedBuildPlan = buildPlan.execute()
-          .mapPartitionsInternal(iter => Iterator(HashedRelation(iter, SQLMetrics.nullLongMetric, buildSideKeyGenerator)))
+          .mapPartitionsInternal(iter => Iterator(HashedRelation(iter, SQLMetrics.nullLongMetric,
+                                                                          buildSideKeyGenerator)))
           .persist()
       }
       cachedBuildPlan.zipPartitions(streamedPlan.execute()) { (buildIter, streamedIter) =>
         hashJoin(streamedIter, numStreamedRows, buildIter.next(), numOutputRows)}
     } else {
       buildPlan.execute().zipPartitions(streamedPlan.execute()) { (buildIter, streamedIter) =>
-        val hashedRelation = HashedRelation(buildIter, SQLMetrics.nullLongMetric, buildSideKeyGenerator)
+        val hashedRelation = HashedRelation(buildIter, SQLMetrics.nullLongMetric,
+                                            buildSideKeyGenerator)
         hashJoin(streamedIter, numStreamedRows, hashedRelation, numOutputRows)
       }
     }

@@ -44,11 +44,11 @@ object HashSetManager {
     determineKeyType(schemaInfo) match {
       case 1 => new IntKeysHashSet()
       case 2 => new LongKeysHashSet(schemaInfo)
-      /*case 1|2 => new UnsafeFixedWidthSet(schemaInfo.schema,
-        1024 * 16, // initial capacity
-        TaskContext.get().taskMemoryManager().pageSizeBytes,
-        false)
-        */
+      /* case 1|2 => new UnsafeFixedWidthSet(schemaInfo.schema,
+         1024 * 16, // initial capacity
+         TaskContext.get().taskMemoryManager().pageSizeBytes,
+         false)
+      */
       case _ => new ObjectHashSet()
     }
   }

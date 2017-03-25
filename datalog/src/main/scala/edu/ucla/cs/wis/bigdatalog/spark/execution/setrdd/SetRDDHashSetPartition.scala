@@ -36,7 +36,8 @@ class SetRDDHashSetPartition(val set: HashSet,
 
   override def iterator: Iterator[InternalRow] = HashSetRowIterator.create(set)
 
-  override def union(otherPart: SetRDDPartition[InternalRow], rddId: Int): SetRDDHashSetPartition = {
+  override def union(otherPart: SetRDDPartition[InternalRow], rddId: Int):
+                                                                        SetRDDHashSetPartition = {
     val start = System.currentTimeMillis()
     val newPartition = otherPart match {
       case otherPart: SetRDDHashSetPartition => {
@@ -46,7 +47,8 @@ class SetRDDHashSetPartition(val set: HashSet,
       case other => union(otherPart.iterator, rddId)
     }
 
-    logInfo("Union set size %s for rdd %s took %s ms".format(this.set.size, rddId, System.currentTimeMillis() - start))
+    logInfo("Union set size %s for rdd %s took %s ms".format(this.set.size, rddId,
+                                                             System.currentTimeMillis() - start))
     newPartition
   }
 
@@ -57,23 +59,26 @@ class SetRDDHashSetPartition(val set: HashSet,
     while (iter.hasNext)
       newSet.insert(iter.next())
 
-    logInfo("Union set size %s for rdd %s took %s ms".format(this.set.size, rddId, System.currentTimeMillis() - start))
+    logInfo("Union set size %s for rdd %s took %s ms".format(this.set.size, rddId,
+                                                               System.currentTimeMillis() - start))
     new SetRDDHashSetPartition(newSet, schemaInfo)
   }
 
   override def diff(iter: Iterator[InternalRow], rddId: Int): SetRDDHashSetPartition = {
     val start = System.currentTimeMillis()
     val diffSet = HashSetManager.create(schemaInfo)
-    //var row: InternalRow = null
+    // var row: InternalRow = null
     var numFactsGenerated: Long = 0
     while (iter.hasNext) {
-      //row = iter.next()
+      // row = iter.next()
       numFactsGenerated += 1
       this.set.ifNotExistsInsert(iter.next(), diffSet)
-      //if (!this.set.exists(row))
+      // if (!this.set.exists(row))
       //  diffSet.insert(row)
     }
-    logInfo("Diff set size %s for rdd %s took %s ms".format(diffSet.size, rddId, System.currentTimeMillis() - start))
+    logInfo("Diff set size %s for rdd %s took %s ms".format(diffSet.size,
+                                                            rddId,
+                                                            System.currentTimeMillis() - start))
     new SetRDDHashSetPartition(diffSet, schemaInfo, numFactsGenerated, diffSet.size)
   }
 }

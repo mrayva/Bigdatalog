@@ -24,62 +24,81 @@ import org.apache.spark.storage.StorageLevel
 import scala.collection.mutable.{HashMap, HashSet, Set}
 
 class CachedRDDManager(defaultStorageLevel: StorageLevel)
-  extends Logging with Serializable {
+    extends Logging
+    with Serializable {
 
   val iterationToRDDMap = new HashMap[Int, HashSet[RDD[_]]]
-  var currentIteration : Int = 0
+  var currentIteration: Int = 0
 
   def persist(rdd: RDD[_]): Unit = {
     persist(rdd, false)
   }
 
   def persist(rdd: RDD[_], doMemoryCheckpoint: Boolean): Unit = {
-    iterationToRDDMap.getOrElseUpdate(currentIteration, new HashSet[RDD[_]]).add(rdd)
+    iterationToRDDMap
+      .getOrElseUpdate(currentIteration, new HashSet[RDD[_]])
+      .add(rdd)
     rdd.persist(defaultStorageLevel)
 
-    if (doMemoryCheckpoint)
+    if (doMemoryCheckpoint) {
       rdd.memoryCheckpoint()
+    }
   }
 
-  def cleanUpIteration(iterationsBackToRemove: Int = 2) = {
+  def cleanUpIteration(iterationsBackToRemove: Int = 2): Unit = {
     val start = System.currentTimeMillis()
     if (currentIteration >= iterationsBackToRemove) {
       val iterationId = currentIteration - iterationsBackToRemove
       if (iterationToRDDMap.contains(iterationId)) {
         val rdds: HashSet[RDD[_]] = iterationToRDDMap.remove(iterationId).get
-        if (rdds.nonEmpty)
-          logInfo("Unpersisting "+rdds.size+" rdds for iteration " + iterationId)
+        if (rdds.nonEmpty) {
+          logInfo(
+            "Unpersisting " + rdds.size + " rdds for iteration " + iterationId)
+        }
         rdds.foreach(rdd => rdd.unpersist(false))
       }
     }
-    logInfo("CleanUpIteration took " + (System.currentTimeMillis() - start) + " ms")
+    logInfo(
+      "CleanUpIteration took " + (System.currentTimeMillis() - start) + " ms")
     currentIteration += 1
   }
 
-  def cleanUpIterationById(iterationId: Int) = {
+  def cleanUpIterationById(iterationId: Int): Unit = {
     if (iterationToRDDMap.contains(iterationId)) {
       val rdds: HashSet[RDD[_]] = iterationToRDDMap.remove(iterationId).get
       rdds.foreach(rdd => rdd.unpersist(false))
     }
   }
 
-  def incrementIteration() { currentIteration += 1}
+  def incrementIteration() { currentIteration += 1 }
 
-  def clear() = {
+  def clear(): Unit = {
     iterationToRDDMap.clear()
   }
 
-  def clear(remainCached: Seq[RDD[_]]) = {
-    iterationToRDDMap.keySet.foreach(key => logInfo("key: " + key + " value: " + iterationToRDDMap.get(key)))
+  def clear(remainCached: Seq[RDD[_]]): Unit = {
+    iterationToRDDMap.keySet.foreach(
+      key =>
+        logInfo(
+          "key: " + key +
+            " value: " + iterationToRDDMap.get(key)))
 
     iterationToRDDMap.keySet
-      .foreach(key => iterationToRDDMap.get(key)
-      .foreach(value => value.foreach(item => {if (!remainCached.contains(item)) item.unpersist(false)})))
+      .foreach(
+        key =>
+          iterationToRDDMap
+            .get(key)
+            .foreach(value =>
+              value.foreach(item => {
+                if (!remainCached.contains(item)) {
+                  item.unpersist(false)
+                }
+              })))
 
     iterationToRDDMap.clear()
   }
 
-  def unpersist(rdds: Set[RDD[_]]) = {
+  def unpersist(rdds: Set[RDD[_]]) : Unit = {
     for (rdd <- rdds) {
       iterationToRDDMap.synchronized {
         // rdd should only be in 1 iteration
@@ -88,14 +107,15 @@ class CachedRDDManager(defaultStorageLevel: StorageLevel)
           val iteration = iterations.head
           iteration._2.remove(rdd)
           rdd.unpersist(false)
-          if (iteration._2.isEmpty)
+          if (iteration._2.isEmpty) {
             iterationToRDDMap.remove(iteration._1)
+          }
         }
       }
     }
   }
 
-  override def toString = {
+  override def toString(): String = {
     val output = new StringBuilder
     iterationToRDDMap.keySet.toSeq.sorted
       .foreach(iteration => {
