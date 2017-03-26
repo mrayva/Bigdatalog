@@ -20,15 +20,20 @@
   <modelVersion>4.0.0</modelVersion>
   <parent>
     <groupId>org.apache.spark</groupId>
-    <artifactId>spark-parent_2.10</artifactId>
+    <artifactId>spark-parent_2.11</artifactId>
     <version>1.6.4-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <groupId>org.apache.spark</groupId>
-  <artifactId>spark-core_2.10</artifactId>
+  <artifactId>spark-core_2.11</artifactId>
   <properties>
     <sbt.project.name>core</sbt.project.name>
+    <akka.group>com.typesafe.akka</akka.group>
+    <akka.version>2.4.17</akka.version>
+    <mesos.version>0.21.1</mesos.version>
+    <mesos.classifier>shaded-protobuf</mesos.classifier>
+    <jersey.version>1.9.1</jersey.version>         
+    <jetty.version>8.1.14.v20131031</jetty.version>
   </properties>
   <packaging>jar</packaging>
   <name>Spark Project Core</name>
@@ -108,6 +113,7 @@
     <dependency>
       <groupId>org.eclipse.jetty</groupId>
       <artifactId>jetty-server</artifactId>
+      <version>${jetty.version}</version>
       <scope>compile</scope>
     </dependency>
     <dependency>
@@ -125,14 +131,22 @@
       <artifactId>jetty-servlet</artifactId>
       <scope>compile</scope>
     </dependency>
-    <!-- Because we mark jetty as provided and shade it, its dependency
-         orbit is ignored, so we explicitly list it here (see SPARK-5557).-->
     <dependency>
-      <groupId>org.eclipse.jetty.orbit</groupId>
-      <artifactId>javax.servlet</artifactId>
-      <version>${orbit.version}</version>
+      <groupId>org.eclipse.jetty</groupId>
+      <artifactId>jetty-client</artifactId>
+      <scope>compile</scope>
     </dependency>
-
+    <dependency>
+      <groupId>org.eclipse.jetty</groupId>
+      <artifactId>jetty-servlets</artifactId>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>javax.servlet</groupId>
+      <artifactId>javax.servlet-api</artifactId>
+      <version>${javaxservlet.version}</version>
+    </dependency>       
+                                                                                   
     <dependency>
       <groupId>org.apache.commons</groupId>
       <artifactId>commons-lang3</artifactId>
@@ -184,45 +198,49 @@
     <dependency>
       <groupId>commons-net</groupId>
       <artifactId>commons-net</artifactId>
-    </dependency>
+    </dependency>       
     <dependency>
       <groupId>${akka.group}</groupId>
       <artifactId>akka-remote_${scala.binary.version}</artifactId>
+      <version>${akka.version}</version>
     </dependency>
     <dependency>
       <groupId>${akka.group}</groupId>
       <artifactId>akka-slf4j_${scala.binary.version}</artifactId>
+      <version>${akka.version}</version>
     </dependency>
     <dependency>
       <groupId>${akka.group}</groupId>
       <artifactId>akka-testkit_${scala.binary.version}</artifactId>
+      <version>${akka.version}</version>
       <scope>test</scope>
     </dependency>
-    <dependency>
+    <dependency>        
       <groupId>org.scala-lang</groupId>
       <artifactId>scala-library</artifactId>
     </dependency>
     <dependency>
       <groupId>org.json4s</groupId>
       <artifactId>json4s-jackson_${scala.binary.version}</artifactId>
-      <version>3.2.10</version>
-    </dependency>
+    </dependency>              
     <dependency>
       <groupId>com.sun.jersey</groupId>
       <artifactId>jersey-server</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>com.sun.jersey</groupId>
-      <artifactId>jersey-core</artifactId>
+      <version>${jersey.version}</version>
     </dependency>
     <dependency>
       <groupId>org.apache.mesos</groupId>
       <artifactId>mesos</artifactId>
+      <version>${mesos.version}</version>
       <classifier>${mesos.classifier}</classifier>
-    </dependency>
+    </dependency>  
     <dependency>
       <groupId>io.netty</groupId>
       <artifactId>netty-all</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.netty</groupId>
+      <artifactId>netty</artifactId>
     </dependency>
     <dependency>
       <groupId>com.clearspring.analytics</groupId>
@@ -266,7 +284,7 @@
       <!-- oro is needed by ivy, but only listed as an optional dependency, so we include it. -->
       <artifactId>oro</artifactId>
       <version>${oro.version}</version>
-    </dependency>
+    </dependency>     
     <dependency>
       <groupId>org.tachyonproject</groupId>
       <artifactId>tachyon-client</artifactId>
@@ -293,16 +311,15 @@
           <artifactId>tachyon-underfs-glusterfs</artifactId>
         </exclusion>
       </exclusions>
-    </dependency>
+    </dependency>    
     <dependency>
       <groupId>org.seleniumhq.selenium</groupId>
       <artifactId>selenium-java</artifactId>
-      <exclusions>
-        <exclusion>
-          <groupId>com.google.guava</groupId>
-          <artifactId>guava</artifactId>
-        </exclusion>
-      </exclusions>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.seleniumhq.selenium</groupId>
+      <artifactId>selenium-htmlunit-driver</artifactId>
       <scope>test</scope>
     </dependency>
     <!-- Added for selenium: -->
@@ -339,7 +356,7 @@
     <dependency>
       <groupId>net.razorvine</groupId>
       <artifactId>pyrolite</artifactId>
-      <version>4.9</version>
+      <version>4.19</version>
       <exclusions>
         <exclusion>
           <groupId>net.razorvine</groupId>
@@ -350,17 +367,65 @@
     <dependency>
       <groupId>net.sf.py4j</groupId>
       <artifactId>py4j</artifactId>
-      <version>0.9</version>
+      <version>0.10.4</version>
     </dependency>
     <dependency>
       <groupId>org.apache.spark</groupId>
-      <artifactId>spark-test-tags_${scala.binary.version}</artifactId>
+      <artifactId>spark-tags_${scala.binary.version}</artifactId>
+    </dependency>
+
+    <!--
+      This spark-tags test-dep is needed even though it isn't used in this module, otherwise testing-cmds that exclude
+      them will yield errors.
+    -->
+    <dependency>
+      <groupId>org.apache.spark</groupId>
+      <artifactId>spark-tags_${scala.binary.version}</artifactId>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-crypto</artifactId>
     </dependency>
   </dependencies>
   <build>
     <outputDirectory>target/scala-${scala.binary.version}/classes</outputDirectory>
     <testOutputDirectory>target/scala-${scala.binary.version}/test-classes</testOutputDirectory>
+    <resources>
+      <resource>
+        <directory>${project.basedir}/src/main/resources</directory>
+      </resource>
+      <resource>
+        <!-- Include the properties file to provide the build information. -->
+        <directory>${project.build.directory}/extra-resources</directory>
+        <filtering>true</filtering>
+      </resource>
+    </resources>
     <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-antrun-plugin</artifactId>
+        <executions>
+          <execution>
+            <phase>generate-resources</phase>
+            <configuration>
+              <!-- Execute the shell script to generate the spark build information. -->
+              <target>
+                <exec executable="bash">
+                  <arg value="${project.basedir}/../build/spark-build-info"/>
+                  <arg value="${project.build.directory}/extra-resources"/>
+                  <arg value="${project.version}"/>
+                </exec>
+              </target>
+            </configuration>
+            <goals>
+              <goal>run</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-dependency-plugin</artifactId>
@@ -381,7 +446,7 @@
               <overWriteIfNewer>true</overWriteIfNewer>
               <useSubDirectoryPerType>true</useSubDirectoryPerType>
               <includeArtifactIds>
-                guava,jetty-io,jetty-servlet,jetty-continuation,jetty-http,jetty-plus,jetty-util,jetty-server,jetty-security
+                guava,jetty-io,jetty-servlet,jetty-servlets,jetty-continuation,jetty-http,jetty-plus,jetty-util,jetty-server,jetty-security,jetty-proxy,jetty-client
               </includeArtifactIds>
               <silent>true</silent>
             </configuration>
@@ -399,8 +464,7 @@
           <family>Windows</family>
         </os>
       </activation>
-      <properties>
-        <path.separator>\</path.separator>
+      <properties>     
         <script.extension>.bat</script.extension>
       </properties>
     </profile>
@@ -412,7 +476,6 @@
         </os>
       </activation>
       <properties>
-        <path.separator>/</path.separator>
         <script.extension>.sh</script.extension>
       </properties>
     </profile>
@@ -433,7 +496,7 @@
               </execution>
             </executions>
             <configuration>
-              <executable>..${path.separator}R${path.separator}install-dev${script.extension}</executable>
+              <executable>..${file.separator}R${file.separator}install-dev${script.extension}</executable>
             </configuration>
           </plugin>
         </plugins>
