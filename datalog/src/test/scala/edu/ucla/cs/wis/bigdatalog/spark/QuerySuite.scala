@@ -35,7 +35,8 @@ abstract class QuerySuite extends FunSuite with Logging {
   def runTests(testCases: Seq[TestCase]): Unit = {
     val sparkCtx = new SparkContext("local[*]", "QuerySuite", new SparkConf()
       .set("spark.eventLog.enabled", "true")
-      //.set("spark.eventLog.dir", "../logs")
+    //.set("spark.eventLog.dir", "../logs")      
+      .set("spark.driver.allowMultipleContexts", "true")      
       .set("spark.ui.enabled", "false")
       .set("spark.sql.shuffle.partitions", "5")
       .setAll(Map.empty[String, String])

@@ -146,6 +146,9 @@ class LogicalPlanGenerator(operatorProgram: OperatorProgram,
               case other =>
                 null // new LocalRelation(output.map(_.toAttribute), Seq.empty)
             }
+          case _ => throw new SparkException(
+            "No match for '" + operator.getOperatorType + "'")
+
         }
 
         val recursiveRulesPlan = getPlan(
@@ -171,6 +174,9 @@ class LogicalPlanGenerator(operatorProgram: OperatorProgram,
                         exitRulesPlan,
                         recursiveRulesPlan,
                         partitioning)
+          case _ => throw new SparkException(
+            "No match for '" + cliqueOperator.getEvaluationType + "'")
+
         }
 
         cliqueOperatorStack.pop()
