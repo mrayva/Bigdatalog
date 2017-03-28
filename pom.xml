@@ -2413,6 +2413,7 @@
           <outputFile>${basedir}/target/checkstyle-output.xml</outputFile>
           <inputEncoding>${project.build.sourceEncoding}</inputEncoding>
           <outputEncoding>${project.reporting.outputEncoding}</outputEncoding>
+          <user.dir>${basedir}/..</user.dir>
         </configuration>
         <executions>
           <execution>

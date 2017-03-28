@@ -82,7 +82,7 @@ class AggregateSetRDD(val partitionsRDD: RDD[AggregateSetRDDPartition],
 
   override def memoryCheckpoint(): Unit = {
     partitionsRDD.memoryCheckpoint()
-    this
+    // this
   }
 
   override def mapPartitions[U: ClassTag](

@@ -293,25 +293,26 @@ class MonotonicAggregate(
         expressionAggEvalProjection.target(aggregateResult)
         val resultProjection =
           UnsafeProjection.create(resultExpressions,
-                                  groupingAttributes ++ aggregateResultSchema)
+            groupingAttributes ++ aggregateResultSchema)
 
         // val allImperativeAggregateFunctions: Array[ImperativeAggregate] =
         //     allAggregateFunctions.collect { case func: ImperativeAggregate => func}
 
-        (currentGroupingKey: UnsafeRow, currentBuffer: UnsafeRow) =>
-          {
-            // Generate results for all expression-based aggregate functions.
-            expressionAggEvalProjection(currentBuffer)
-            // Generate results for all imperative aggregate functions.
-            /* var i = 0
+        (currentGroupingKey: UnsafeRow, currentBuffer: UnsafeRow) => {
+          // Generate results for all expression-based aggregate functions.
+          expressionAggEvalProjection(currentBuffer)
+          // Generate results for all imperative aggregate functions.
+          /* var i = 0
                while (i < allImperativeAggregateFunctions.length) {
                  aggregateResult.update(
                  allImperativeAggregateFunctionPositions(i),
                  allImperativeAggregateFunctions(i).eval(currentBuffer))
                  i += 1
           } */
-            resultProjection(joinedRow(currentGroupingKey, aggregateResult))
-          }
+          resultProjection(joinedRow(currentGroupingKey, aggregateResult))
+        }
+
+      case _ => throw new SparkException( "No match for '" + aggregationMode + "'" )
     }
   }
 }

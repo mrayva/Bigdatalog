@@ -448,8 +448,7 @@ class TungstenMonotonicAggregationIterator(
 
       // Grouping only.
       case (None, None) =>
-        (currentBuffer: UnsafeRow, row: InternalRow) =>
-          { false }
+        (currentBuffer: UnsafeRow, row: InternalRow) => { /* false */ }
 
       case other =>
         throw new IllegalStateException(

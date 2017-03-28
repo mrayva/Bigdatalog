@@ -35,7 +35,8 @@ import java.util.Iterator;
 import java.util.LinkedList;
 
 /**
- * APS - this is a version of org.apache.spark.unsafe.map.ByteToByteMap that is detached from the memory management infrastructure.
+ * APS - this is a version of org.apache.spark.unsafe.map.ByteToByteMap that is detached
+ * from the memory management infrastructure.
  * It will not ask for memory to be allocated from TaskMemoryManager and will not spill.
  * TODO - hook this up to the storage memory manager.
  *
@@ -59,7 +60,8 @@ import java.util.LinkedList;
  */
 public final class BytesToBytesMap implements Serializable {
 
-    private final Logger logger = LoggerFactory.getLogger(edu.ucla.cs.wis.bigdatalog.spark.storage.map.BytesToBytesMap.class);
+    private final Logger logger = LoggerFactory.getLogger(edu.ucla.cs.wis.bigdatalog.
+                                                          spark.storage.map.BytesToBytesMap.class);
 
     private static final Murmur3_x86_32 HASHER = new Murmur3_x86_32(0);
 
@@ -176,7 +178,8 @@ public final class BytesToBytesMap implements Serializable {
         }
         if (initialCapacity > MAX_CAPACITY) {
             throw new IllegalArgumentException(
-                    "Initial capacity " + initialCapacity + " exceeds maximum capacity of " + MAX_CAPACITY);
+                            "Initial capacity " + initialCapacity +
+                            " exceeds maximum capacity of " + MAX_CAPACITY);
         }
         if (pageSizeBytes > TaskMemoryManager.MAXIMUM_PAGE_SIZE_BYTES) {
             throw new IllegalArgumentException("Page size " + pageSizeBytes + " cannot exceed " +
@@ -201,7 +204,8 @@ public final class BytesToBytesMap implements Serializable {
      */
     public int numElements() { return numElements; }
 
-    public final class MapIterator implements Iterator<edu.ucla.cs.wis.bigdatalog.spark.storage.map.BytesToBytesMap.Location> {
+    public final class MapIterator implements Iterator<edu.ucla.cs.wis.bigdatalog.
+                                                      spark.storage.map.BytesToBytesMap.Location> {
 
         private int numRecords;
         private final edu.ucla.cs.wis.bigdatalog.spark.storage.map.BytesToBytesMap.Location loc;
@@ -211,7 +215,8 @@ public final class BytesToBytesMap implements Serializable {
         private Object pageBaseObject;
         private long offsetInPage;
 
-        private MapIterator(int numRecords, edu.ucla.cs.wis.bigdatalog.spark.storage.map.BytesToBytesMap.Location loc) {
+        private MapIterator(int numRecords, edu.ucla.cs.wis.bigdatalog.
+                                                spark.storage.map.BytesToBytesMap.Location loc) {
             this.numRecords = numRecords;
             this.loc = loc;
         }
@@ -262,7 +267,8 @@ public final class BytesToBytesMap implements Serializable {
     /**
      * Returns an iterator for iterating over the entries of this map.
      *
-     * For efficiency, all calls to `next()` will return the same {@link org.apache.spark.unsafe.map.BytesToBytesMap.Location} object.
+     * For efficiency, all calls to `next()` will return the same
+     * {@link org.apache.spark.unsafe.map.BytesToBytesMap.Location} object.
      *
      * If any other lookups or operations are performed on this map while iterating over it, including
      * `lookup()`, the behavior of the returned iterator is undefined.
@@ -272,10 +278,11 @@ public final class BytesToBytesMap implements Serializable {
     }
 
     /**
-     * Looks up a key, and return a {@link org.apache.spark.unsafe.map.BytesToBytesMap.Location} handle that can be used to test existence
-     * and read/write values.
+     * Looks up a key, and return a {@link org.apache.spark.unsafe.map.BytesToBytesMap.Location}
+     * handle that can be used to test existence and read/write values.
      *
-     * This function always return the same {@link org.apache.spark.unsafe.map.BytesToBytesMap.Location} instance to avoid object allocation.
+     * This function always return the same {@link org.apache.spark.unsafe.map.BytesToBytesMap.Location}
+     * instance to avoid object allocation.
      */
     public edu.ucla.cs.wis.bigdatalog.spark.storage.map.BytesToBytesMap.Location lookup(Object keyBase, long keyOffset, int keyLength) {
         safeLookup(keyBase, keyOffset, keyLength, loc);

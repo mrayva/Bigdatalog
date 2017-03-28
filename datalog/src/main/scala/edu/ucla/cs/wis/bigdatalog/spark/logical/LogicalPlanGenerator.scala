@@ -148,7 +148,6 @@ class LogicalPlanGenerator(operatorProgram: OperatorProgram,
             }
           case _ => throw new SparkException(
             "No match for '" + operator.getOperatorType + "'")
-
         }
 
         val recursiveRulesPlan = getPlan(
@@ -162,7 +161,7 @@ class LogicalPlanGenerator(operatorProgram: OperatorProgram,
                                exitRulesPlan,
                                recursiveRulesPlan,
                                partitioning)
-          case EvaluationType.SemiNaive =>
+          case EvaluationType.SemiNaive => {
             if (operator.getOperatorType == OperatorType.MUTUAL_RECURSIVE_CLIQUE) {
               MutualRecursion(cliqueOperator.getName,
                               cliqueOperator.isLinearRecursion,
@@ -174,9 +173,9 @@ class LogicalPlanGenerator(operatorProgram: OperatorProgram,
                         exitRulesPlan,
                         recursiveRulesPlan,
                         partitioning)
+          }
           case _ => throw new SparkException(
             "No match for '" + cliqueOperator.getEvaluationType + "'")
-
         }
 
         cliqueOperatorStack.pop()

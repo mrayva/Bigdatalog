@@ -76,7 +76,7 @@ class SetRDD(var partitionsRDD: RDD[SetRDDPartition[InternalRow]])
 
   override def memoryCheckpoint(): Unit = {
     partitionsRDD.memoryCheckpoint()
-    this
+    // this
   }
 
   override def mapPartitions[U: ClassTag](
