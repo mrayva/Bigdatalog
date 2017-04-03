@@ -19,13 +19,13 @@
   <modelVersion>4.0.0</modelVersion>
   <parent>
     <groupId>org.apache.spark</groupId>
-    <artifactId>spark-parent_2.11</artifactId>
+    <artifactId>spark-parent_2.10</artifactId>
     <version>1.6.4-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
   <groupId>org.apache.spark</groupId>
-  <artifactId>spark-tools_2.11</artifactId>
+  <artifactId>spark-tools_2.10</artifactId>
   <properties>
     <sbt.project.name>tools</sbt.project.name>
   </properties>
@@ -33,7 +33,7 @@
   <name>Spark Project Tools</name>
   <url>http://spark.apache.org/</url>
 
-  <dependencies>                     
+  <dependencies>
     <dependency>
       <groupId>org.apache.spark</groupId>
       <artifactId>spark-core_${scala.binary.version}</artifactId>
@@ -43,7 +43,7 @@
       <groupId>org.apache.spark</groupId>
       <artifactId>spark-streaming_${scala.binary.version}</artifactId>
       <version>${project.version}</version>
-    </dependency>  
+    </dependency>
     <dependency>
       <groupId>org.scala-lang</groupId>
       <artifactId>scala-reflect</artifactId>
@@ -51,11 +51,6 @@
     <dependency>
       <groupId>org.scala-lang</groupId>
       <artifactId>scala-compiler</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.clapper</groupId>
-      <artifactId>classutil_${scala.binary.version}</artifactId>
-      <version>1.0.6</version>
     </dependency>
   </dependencies>
 
